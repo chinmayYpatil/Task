@@ -118,6 +118,7 @@ class TextReadingViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(recordingState = RecordingState.LOADING_TEXT) }
             try {
+                // Call the updated repository function which now attempts a real API fetch
                 val text = repository.fetchTextPassage()
                 // Keep words split as it's used to render the text word-by-word in the UI
                 val words = text.split(Regex("\\s+")).filter { it.isNotEmpty() }
@@ -126,8 +127,8 @@ class TextReadingViewModel(
                         passageText = text,
                         passageWords = words,
                         lastSpokenWordIndex = -1, // Reset to initial state
-                        recordingState = RecordingState.READY_TO_RECORD,
-                        errorMessage = null,
+                        recordingState = if (text.startsWith("Error")) RecordingState.IDLE else RecordingState.READY_TO_RECORD,
+                        errorMessage = if (text.startsWith("Error")) text else null, // Show error message if fetch failed
                         lastRecordedDuration = null,
                         recordedAudioPath = null, // Reset path
                         checkboxState = CheckboxState(),
@@ -135,7 +136,8 @@ class TextReadingViewModel(
                     )
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(passageText = "Error loading text: ${e.message}", recordingState = RecordingState.READY_TO_RECORD) }
+                val errorMsg = "Fatal Error fetching text: ${e.message}"
+                _uiState.update { it.copy(passageText = errorMsg, recordingState = RecordingState.IDLE, errorMessage = errorMsg) }
             }
         }
     }
@@ -317,8 +319,6 @@ class TextReadingViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        // This is the crucial cleanup step that should now be reliably called
-        // due to the fix in MainViewModel.popBack()
         recorder.stopRecording()
         recorder.stopPlayback()
     }
