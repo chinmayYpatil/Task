@@ -40,6 +40,11 @@ class MainViewModel : ViewModel() {
                 navigateTo(Screen.NoiseTest)
                 true
             }
+            // FIX: Add navigation back from TextReading to TaskSelection
+            Screen.TextReading -> {
+                navigateTo(Screen.TaskSelection)
+                true
+            }
             // For the Start screen, this should be handled by the system (close app/go home)
             Screen.Start -> false
             else -> false

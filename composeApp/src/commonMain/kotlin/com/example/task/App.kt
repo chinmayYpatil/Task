@@ -2,8 +2,8 @@ package com.example.task
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons // <-- ADD THIS IMPORT
-import androidx.compose.material.icons.automirrored.filled.ArrowBack // <-- ADD THIS IMPORT
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -20,6 +20,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.task.navigation.Screen
 import com.example.task.screen.NoiseTestScreen
 import com.example.task.screen.TaskSelectionScreen
+import com.example.task.screen.TextReadingScreen // <-- ADDED IMPORT
 import com.example.task.screen.rememberTaskSelectionViewModel
 import com.example.task.viewmodel.MainViewModel
 import com.example.task.viewmodel.StartViewModel
@@ -75,15 +76,16 @@ fun TaskApp() {
 
         val currentScreen = uiState.currentScreen
         val title = when (currentScreen) {
-            Screen.Start -> ""
+            Screen.Start -> "Sample Task App"
             Screen.NoiseTest -> "Noise Test"
             Screen.TaskSelection -> "Select Task"
+            Screen.TextReading -> "Text Reading Task" // <-- ADDED TITLE
             else -> "App" // Placeholder for other screens
         }
 
         // Define back action logic
         val onBack: () -> Unit = {
-            // REQUIRED: If popBack returns false (i.e., we are on the root screen - Start),
+            // If popBack returns false (i.e., we are on the root screen - Start),
             // the Android/iOS system should handle closing the app.
             mainViewModel.popBack()
         }
@@ -102,6 +104,7 @@ fun TaskApp() {
                 }
                 Screen.NoiseTest -> NoiseTestScreen(mainViewModel = mainViewModel)
                 Screen.TaskSelection -> TaskSelectionScreen(mainViewModel = mainViewModel)
+                Screen.TextReading -> TextReadingScreen(mainViewModel = mainViewModel) // <-- ADDED SCREEN
                 else -> {}
             }
         }

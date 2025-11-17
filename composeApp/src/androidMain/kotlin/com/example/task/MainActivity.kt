@@ -14,12 +14,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import com.example.task.platform.DecibelMeter
-import android.util.Log // <--- New Import
+import android.util.Log
+import com.example.task.platform.AudioRecorder // <-- NEW IMPORT
 
 class MainActivity : ComponentActivity() {
 
-    private val TAG = "NoiseTestApp_Activity" // <--- New Tag
+    private val TAG = "NoiseTestApp_Activity"
     private var isPermissionGranted = mutableStateOf(false)
 
     private val requestPermissionLauncher =
@@ -36,6 +36,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         Log.d(TAG, "MainActivity onCreate started.")
+
+        // REQUIRED FIX: Initialize AudioRecorder with the application's cache directory
+        // This is crucial for the MediaRecorder implementation to save the audio file.
+        AudioRecorder.Companion.initialize(cacheDir)
+
 
         // 1. Check if permission is already granted
         when {
