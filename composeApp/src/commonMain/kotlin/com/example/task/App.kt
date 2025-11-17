@@ -20,7 +20,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.task.navigation.Screen
 import com.example.task.screen.NoiseTestScreen
 import com.example.task.screen.TaskSelectionScreen
-import com.example.task.screen.TextReadingScreen // <-- ADDED IMPORT
+import com.example.task.screen.TextReadingScreen
+import com.example.task.screen.ImageDescriptionScreen // <-- NEW IMPORT
 import com.example.task.screen.rememberTaskSelectionViewModel
 import com.example.task.viewmodel.MainViewModel
 import com.example.task.viewmodel.StartViewModel
@@ -79,7 +80,8 @@ fun TaskApp() {
             Screen.Start -> "Sample Task App"
             Screen.NoiseTest -> "Noise Test"
             Screen.TaskSelection -> "Select Task"
-            Screen.TextReading -> "Text Reading Task" // <-- ADDED TITLE
+            Screen.TextReading -> "Text Reading Task"
+            Screen.ImageDescription -> "Image Description Task" // <-- ADDED TITLE
             else -> "App" // Placeholder for other screens
         }
 
@@ -104,7 +106,8 @@ fun TaskApp() {
                 }
                 Screen.NoiseTest -> NoiseTestScreen(mainViewModel = mainViewModel)
                 Screen.TaskSelection -> TaskSelectionScreen(mainViewModel = mainViewModel)
-                Screen.TextReading -> TextReadingScreen(mainViewModel = mainViewModel) // <-- ADDED SCREEN
+                Screen.TextReading -> TextReadingScreen(mainViewModel = mainViewModel)
+                Screen.ImageDescription -> ImageDescriptionScreen(mainViewModel = mainViewModel) // <-- ADDED SCREEN
                 else -> {}
             }
         }

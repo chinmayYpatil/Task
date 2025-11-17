@@ -23,7 +23,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider // NEW IMPORT
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
@@ -37,24 +37,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.example.task.viewmodel.ImageDescriptionUiState
+import com.example.task.viewmodel.ImageDescriptionViewModel
 import com.example.task.viewmodel.MainViewModel
-import com.example.task.viewmodel.MAX_DURATION_SEC
-import com.example.task.viewmodel.TextRecordingState // UPDATED: Renamed enum import
-import com.example.task.viewmodel.TextReadingUiState
-import com.example.task.viewmodel.TextReadingViewModel
+import com.example.task.viewmodel.IMAGE_MAX_DURATION_SEC
+import com.example.task.viewmodel.ImageRecordingState
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import kotlin.math.min
 
+// NEW IMPORTS FOR IMAGE DISPLAY (Coil)
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.geometry.Size // Explicit import to resolve compilation conflicts
+
+// Mock logger
+private fun logDebug(tag: String, message: String) {
+    println("DEBUG | $tag: $message")
+}
+private const val TAG_UI = "ImageDescApp_UI" // Log Tag for the Screen
+
 // Factory function to retain the ViewModel instance
 @Composable
-fun rememberTextReadingViewModel(mainViewModel: MainViewModel): TextReadingViewModel {
-    return remember { TextReadingViewModel(mainViewModel = mainViewModel) }
+fun rememberImageDescriptionViewModel(mainViewModel: MainViewModel): ImageDescriptionViewModel {
+    return remember { ImageDescriptionViewModel(mainViewModel = mainViewModel) }
 }
 
 // Helper function to format milliseconds to current / total (mm:ss / mm:ss)
@@ -76,8 +83,8 @@ private fun formatTime(milliseconds: Int, totalDurationSec: Int): String {
 
 
 @Composable
-fun TextReadingScreen(mainViewModel: MainViewModel) {
-    val viewModel = rememberTextReadingViewModel(mainViewModel = mainViewModel)
+fun ImageDescriptionScreen(mainViewModel: MainViewModel) {
+    val viewModel = rememberImageDescriptionViewModel(mainViewModel = mainViewModel)
     val uiState by viewModel.uiState.collectAsState()
 
     Column(
@@ -87,9 +94,9 @@ fun TextReadingScreen(mainViewModel: MainViewModel) {
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 1. Text Passage
+        // 1. Image/Display Area
         Text(
-            text = "Passage to read:",
+            text = "Image to describe:",
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
         )
@@ -97,13 +104,15 @@ fun TextReadingScreen(mainViewModel: MainViewModel) {
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .background(Color.LightGray.copy(alpha = 0.2f))
-                .padding(16.dp)
+                .background(Color.DarkGray.copy(alpha = 0.5f))
+                .padding(1.dp) // Minor padding for border effect
         ) {
-            // Display dynamic text coloring
-            PassageTextDisplay(uiState = uiState)
+            // FIX: Added non-null assertion (!!) to resolve smart cast error when passing nullable state property
+            if (uiState.imageUrl != null && uiState.recordingState != ImageRecordingState.LOADING_TASK) {
+                NetworkImageDisplay(url = uiState.imageUrl!!)
+            }
 
-            if (uiState.recordingState == TextRecordingState.LOADING_TEXT) { // UPDATED
+            if (uiState.recordingState == ImageRecordingState.LOADING_TASK) {
                 CircularProgressIndicator(Modifier.align(Alignment.Center))
             }
         }
@@ -112,7 +121,7 @@ fun TextReadingScreen(mainViewModel: MainViewModel) {
 
         // 2. Instructions
         Text(
-            text = "Read the passage aloud in your native language.",
+            text = uiState.instruction,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -120,21 +129,21 @@ fun TextReadingScreen(mainViewModel: MainViewModel) {
 
         // 3. Mic Button / Recording Indicator
         when (uiState.recordingState) {
-            TextRecordingState.READY_TO_RECORD, TextRecordingState.RECORDING -> { // UPDATED
-                RecordButton(
+            ImageRecordingState.READY_TO_RECORD, ImageRecordingState.RECORDING -> {
+                ImageDescriptionRecordButton(
                     state = uiState.recordingState,
                     elapsedTime = uiState.elapsedTime,
                     onClick = viewModel::onMicClick
                 )
             }
-            TextRecordingState.REVIEW -> { // UPDATED
+            ImageRecordingState.REVIEW -> {
                 // Recording Results Area
-                RecordingResultArea(
+                ImageDescriptionRecordingResultArea(
                     uiState = uiState,
                     viewModel = viewModel
                 )
             }
-            else -> { /* Loading text state, typically shows a spacer/loader */
+            else -> {
                 Spacer(Modifier.size(100.dp).padding(top = 8.dp))
             }
         }
@@ -153,7 +162,7 @@ fun TextReadingScreen(mainViewModel: MainViewModel) {
         Spacer(Modifier.height(16.dp))
 
         // 5. Submit Button (Visible only in Review state)
-        if (uiState.recordingState == TextRecordingState.REVIEW) { // UPDATED
+        if (uiState.recordingState == ImageRecordingState.REVIEW) {
             Button(
                 onClick = viewModel::onSubmitClick,
                 enabled = uiState.isSubmitEnabled,
@@ -166,77 +175,52 @@ fun TextReadingScreen(mainViewModel: MainViewModel) {
 }
 
 /**
- * Renders the passage text without any word highlighting.
+ * REPLACEMENT for ImagePlaceholder: A composable that visually represents a loaded image.
+ * This component is responsible for displaying the network image based on the URL.
  */
 @Composable
-private fun PassageTextDisplay(uiState: TextReadingUiState) {
-    if (uiState.passageWords.isEmpty()) {
-        Text(
-            text = uiState.passageText,
-            style = MaterialTheme.typography.bodyLarge,
-            color = Color.Black
-        )
-        return
-    }
+private fun NetworkImageDisplay(url: String) {
+    logDebug(TAG_UI, "NetworkImageDisplay rendering for URL: $url")
 
-    val annotatedString = buildAnnotatedString {
-        uiState.passageWords.forEachIndexed { index, word ->
-            // REMOVED HIGHLIGHTING: Render all words as standard black text.
-            withStyle(
-                style = SpanStyle(
-                    color = Color.Black,
-                    fontWeight = FontWeight.Normal
-                )
-            ) {
-                // Append the word followed by a space
-                append(word)
-                append(" ")
-            }
-        }
-    }
-
-    Text(
-        text = annotatedString,
-        style = MaterialTheme.typography.bodyLarge
+    // FIX: Use Coil's AsyncImage and REMOVE the problematic 'error' composable parameter
+    // to resolve the compilation errors (Argument type mismatch and @Composable context).
+    AsyncImage(
+        model = url,
+        contentDescription = "Image to describe",
+        modifier = Modifier.fillMaxSize(),
+        contentScale = ContentScale.Fit, // Use Fit to ensure the whole image fits in the allocated box
     )
 }
 
-/**
- * Single composable for Start/Stop Mic Button and Timer Indicator.
- */
+
 @Composable
-private fun RecordButton(
-    state: TextRecordingState, // UPDATED
+private fun ImageDescriptionRecordButton(
+    state: ImageRecordingState,
     elapsedTime: Int,
     onClick: () -> Unit
 ) {
-    val isRecording = state == TextRecordingState.RECORDING // UPDATED
+    val isRecording = state == ImageRecordingState.RECORDING
 
     IconButton(
         onClick = onClick,
-        // Enabled when ready to start or when recording to stop
-        enabled = state == TextRecordingState.READY_TO_RECORD || state == TextRecordingState.RECORDING, // UPDATED
+        enabled = state == ImageRecordingState.READY_TO_RECORD || state == ImageRecordingState.RECORDING,
         modifier = Modifier
             .size(100.dp)
             .background(if (isRecording) Color.Red else MaterialTheme.colorScheme.primary, CircleShape)
     ) {
         if (isRecording) {
-            // Timer Indicator when recording
-            val progress = min(elapsedTime.toFloat() / MAX_DURATION_SEC, 1f)
+            val progress = min(elapsedTime.toFloat() / IMAGE_MAX_DURATION_SEC, 1f)
 
-            // Draw progress circle
             Canvas(modifier = Modifier.size(90.dp)) {
                 val strokeWidth = 5.dp.toPx()
                 val radius = size.minDimension / 2
 
-                // Outer circle indicating max duration (20s)
                 drawCircle(
                     color = Color.White.copy(alpha = 0.5f),
                     radius = radius,
                     style = Stroke(width = strokeWidth)
                 )
 
-                // Progress arc
                 drawArc(
                     color = Color.White,
                     startAngle = 270f,
@@ -244,7 +228,7 @@ private fun RecordButton(
                     useCenter = false,
                     style = Stroke(width = strokeWidth),
                     topLeft = Offset((size.width - radius * 2) / 2, (size.height - radius * 2) / 2),
-                    size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2)
+                    size = Size(radius * 2, radius * 2) // Using the explicit import Size
                 )
             }
 
@@ -255,7 +239,6 @@ private fun RecordButton(
                 modifier = Modifier.size(48.dp)
             )
         } else {
-            // Default Mic Icon when ready
             Icon(
                 imageVector = Icons.Filled.Mic,
                 contentDescription = "Start Recording",
@@ -266,8 +249,8 @@ private fun RecordButton(
     }
 
     val statusText = when (state) {
-        TextRecordingState.READY_TO_RECORD -> "Tap to Start Recording" // UPDATED
-        TextRecordingState.RECORDING -> "${elapsedTime}s / ${MAX_DURATION_SEC}s (Tap to stop)" // UPDATED
+        ImageRecordingState.READY_TO_RECORD -> "Tap to Start Recording"
+        ImageRecordingState.RECORDING -> "${elapsedTime}s / ${IMAGE_MAX_DURATION_SEC}s (Tap to stop)"
         else -> ""
     }
 
@@ -281,44 +264,37 @@ private fun RecordButton(
     }
 }
 
+
 @Composable
-private fun RecordingResultArea(
-    uiState: TextReadingUiState,
-    viewModel: TextReadingViewModel
+private fun ImageDescriptionRecordingResultArea(
+    uiState: ImageDescriptionUiState,
+    viewModel: ImageDescriptionViewModel
 ) {
-    // Determine which icon to show: Play or Stop
     val playbackIcon = if (uiState.isPlayingAudio) Icons.Filled.Stop else Icons.Filled.PlayArrow
     val contentDescription = if (uiState.isPlayingAudio) "Stop Playback" else "Play Recording"
 
     val durationSec = uiState.lastRecordedDuration ?: uiState.elapsedTime
     val durationMs = durationSec * 1000
 
-    // 1. Calculate the actual flow progress (used as the base value)
     val flowProgress = if (durationMs > 0) {
         uiState.playbackPositionMs.toFloat() / durationMs
     } else {
         0f
     }
 
-    // 2. Determine the progress based on manual seek position when not playing
     val initialSeekProgress = if (durationMs > 0) {
         uiState.manualSeekPositionMs.toFloat() / durationMs
     } else {
         0f
     }
 
-    // Local state to track the slider position while dragging
     var seekPositionFraction by remember { mutableStateOf(initialSeekProgress) }
     var isSeeking by remember { mutableStateOf(false) }
 
-    // If the audio starts playing or finishes, reset the local state to track the flow progress.
-    // When not seeking, the slider position tracks either the live position (if playing) or the stored manual position.
     if (!isSeeking) {
-        // Use live progress if playing, otherwise use the stored manual seek position
         seekPositionFraction = if (uiState.isPlayingAudio) flowProgress else initialSeekProgress
     }
 
-    // Determine which millisecond value to display: local drag position, live position, or stored manual position
     val displayPositionMs = if (isSeeking)
         (seekPositionFraction * durationMs).toInt()
     else if (uiState.isPlayingAudio)
@@ -334,7 +310,6 @@ private fun RecordingResultArea(
         modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Playback button calls the toggle function
         IconButton(onClick = viewModel::onPlayClick) {
             Icon(playbackIcon, contentDescription = contentDescription)
         }
@@ -342,21 +317,17 @@ private fun RecordingResultArea(
         Slider(
             value = seekPositionFraction,
             onValueChange = { newProgress ->
-                // 1. Set seeking state and update local position for visual dragging
                 isSeeking = true
                 seekPositionFraction = newProgress
             },
             onValueChangeFinished = {
-                // 2. Commit the seek operation when the user lifts their finger
-                // This will either seek the player (if playing) or update the manualSeekPositionMs (if stopped)
                 viewModel.onSeek(seekPositionFraction)
                 isSeeking = false
             },
-            enabled = durationMs > 0, // Enable only if there's audio to play
+            enabled = durationMs > 0,
             modifier = Modifier.weight(1f)
         )
 
-        // Display dynamic time
         Text(
             text = timeText,
             modifier = Modifier.padding(start = 8.dp)
@@ -371,13 +342,13 @@ private fun RecordingResultArea(
             checked = uiState.checkboxState.noNoise,
             onCheckedChange = { viewModel.onCheckboxToggled(0, it) }
         )
-        // Checkbox 2: No mistakes while reading
+        // Checkbox 2: No mistakes while describing
         CheckRow(
-            text = "No mistakes while reading",
+            text = "No mistakes while describing",
             checked = uiState.checkboxState.noMistakes,
             onCheckedChange = { viewModel.onCheckboxToggled(1, it) }
         )
-        // Checkbox 3: Beech me koi galti nahi hai
+        // Checkbox 3: Hindi Check (re-used)
         CheckRow(
             text = "Beech me koi galti nahi hai",
             checked = uiState.checkboxState.hindiCheck,
@@ -412,5 +383,14 @@ private fun CheckRow(
     ) {
         Text(text)
         Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+
+@Preview
+@Composable
+fun ImageDescriptionScreenPreview() {
+    MaterialTheme {
+        ImageDescriptionScreen(mainViewModel = MainViewModel())
     }
 }

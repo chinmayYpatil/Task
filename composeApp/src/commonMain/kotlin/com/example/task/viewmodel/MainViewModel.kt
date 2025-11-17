@@ -40,8 +40,12 @@ class MainViewModel : ViewModel() {
                 navigateTo(Screen.NoiseTest)
                 true
             }
-            // FIX: Add navigation back from TextReading to TaskSelection
             Screen.TextReading -> {
+                navigateTo(Screen.TaskSelection)
+                true
+            }
+            // NEW: Add navigation back from ImageDescription to TaskSelection
+            Screen.ImageDescription -> {
                 navigateTo(Screen.TaskSelection)
                 true
             }

@@ -43,6 +43,9 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(compose.materialIconsExtended)
 
+
+            implementation("io.coil-kt:coil-compose:2.7.0")
+
             // FIX: Synchronized all Ktor dependencies to 2.3.12
             implementation("io.ktor:ktor-client-core:2.3.12")
             implementation("io.ktor:ktor-client-content-negotiation:2.3.12")

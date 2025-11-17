@@ -1,10 +1,12 @@
 package com.example.task.repository
 
+import com.example.task.data.Product
 import com.example.task.data.ProductResponse
 import com.example.task.data.TextReadingTask
+import com.example.task.data.ImageDescriptionTask // <-- NEW IMPORT
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
-import io.ktor.client.* import io.ktor.client.call.* import io.ktor.client.request.* import io.ktor.client.plugins.contentnegotiation.* import io.ktor.serialization.kotlinx.json.* import io.ktor.http.* import kotlin.random.Random // NEW IMPORT: To ensure Random is available
+import io.ktor.client.* import io.ktor.client.call.* import io.ktor.client.request.* import io.ktor.client.plugins.contentnegotiation.* import io.ktor.serialization.kotlinx.json.* import io.ktor.http.* import kotlin.random.Random
 
 // Setup Ktor HTTP Client and JSON configuration
 // This initialization block needs to be done once in a real KMP project.
@@ -42,8 +44,45 @@ class TaskRepository {
         }
     }
 
-    // Mock function to simulate saving the task locally
+    // NEW FUNCTION
+    /**
+     * Fetches a random product and extracts the image URL for the Image Description task.
+     * @return Pair<String, String?> of (Title/Instruction, Image URL)
+     */
+    suspend fun fetchImageDescriptionTaskData(): Pair<String, String?> {
+        return try {
+            val apiUrl = "https://dummyjson.com/products"
+
+            // Perform the network request
+            val response: ProductResponse = httpClient.get(apiUrl).body()
+
+            val randomProduct = response.products.randomOrNull()
+
+            val imageUrl = randomProduct?.randomImageUrl // Use the helper property
+            // Fallback to a hardcoded image if fetch fails or product has no images
+                ?: "https://cdn.dummyjson.com/product-images/14/2.jpg"
+
+            val instruction = randomProduct?.title?.let { "Describe the image of '${it}' in your native language." }
+                ?: "Describe what you see in your native language."
+
+            instruction to imageUrl
+
+        } catch (e: Exception) {
+            println("API Fetch Error for Image Task: ${e.message}")
+            // Fallback text and hardcoded image
+            "Describe the image you see in your native language." to "https://cdn.dummyjson.com/product-images/14/2.jpg"
+        }
+    }
+
+    // Mock function to simulate saving the Text Reading task locally
     suspend fun saveTextReadingTask(task: TextReadingTask) {
+        delay(100L) // Simulate disk write delay
+        println("TASK SAVED: $task")
+    }
+
+    // NEW FUNCTION
+    // Mock function to simulate saving the Image Description task locally
+    suspend fun saveImageDescriptionTask(task: ImageDescriptionTask) {
         delay(100L) // Simulate disk write delay
         println("TASK SAVED: $task")
     }
