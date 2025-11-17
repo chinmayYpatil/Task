@@ -72,7 +72,7 @@ class NoiseTestViewModel(
     }
 
     fun startTest() {
-        if (_uiState.value.state != TestState.IDLE) {
+        if (_uiState.value.state != TestState.IDLE && _uiState.value.isTestSuccessful != false) {
             logDebug(TAG, "Test already running or analyzing. Current state: ${_uiState.value.state}")
             return
         }
@@ -103,7 +103,7 @@ class NoiseTestViewModel(
 
         viewModelScope.launch {
             val averageDb = recordedDbs.filter { it >= 0 }.takeIf { it.isNotEmpty() }?.average()?.toFloat() ?: 0f
-            val isSuccess = averageDb < NOISE_THRESHOLD_DB
+            val isSuccess = averageDb < NOISE_THRESHOLD_DB // Success if < 40 dB
 
             // FIX: Use explicit formatting function
             val formattedAvgDb = ((averageDb * 10).roundToInt() / 10f).toString()
@@ -126,15 +126,21 @@ class NoiseTestViewModel(
                 )
             }
 
-            // 3. Navigate or prompt retry
-            delay(RESULT_DISPLAY_DELAY_MS)
-            if (isSuccess) {
-                mainViewModel.navigateTo(Screen.TaskSelection)
-            } else {
-                // Return to IDLE state to allow the user to retry
+            // 3. Handle result display and retry/manual navigation
+            if (!isSuccess) {
+                // REQUIRED: If failed (>= 40 dB), reset to IDLE after a delay to allow for retry
+                delay(RESULT_DISPLAY_DELAY_MS)
                 _uiState.update { NoiseTestUiState() }
             }
+            // REQUIRED: If successful (< 40 dB), stay in COMPLETED state and wait for user click.
         }
+    }
+
+    /**
+     * Called when the user clicks the "Good to proceed" button.
+     */
+    fun navigateToTaskSelection() {
+        mainViewModel.navigateTo(Screen.TaskSelection)
     }
 
     override fun onCleared() {

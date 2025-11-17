@@ -26,6 +26,26 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Simulates popping the back stack.
+     * Only supports navigation back to a fixed set of screens for this prototype.
+     */
+    fun popBack(): Boolean {
+        return when (_uiState.value.currentScreen) {
+            Screen.NoiseTest -> {
+                navigateTo(Screen.Start)
+                true
+            }
+            Screen.TaskSelection -> {
+                navigateTo(Screen.NoiseTest)
+                true
+            }
+            // For the Start screen, this should be handled by the system (close app/go home)
+            Screen.Start -> false
+            else -> false
+        }
+    }
+
     fun startSampleTaskFlow() {
         navigateTo(Screen.NoiseTest)
     }

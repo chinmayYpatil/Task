@@ -28,9 +28,6 @@ import com.example.task.viewmodel.StartViewModel
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 
-// Full Objective for the Prototype
-private const val PROTOTYPE_OBJECTIVE = "Objective: Create a Kotlin Multiplatform (KMM) + Compose Multiplatform (CMP) prototype that allows the user to perform different sample recording tasks (text reading, image description, and photo capture) and view all completed tasks in a local “Task History” list."
-
 @Composable
 fun StartScreen(viewModel: StartViewModel) {
     val uiState = viewModel.uiState
@@ -43,26 +40,9 @@ fun StartScreen(viewModel: StartViewModel) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // --- Prototype Objective Display ---
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.primary)
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = PROTOTYPE_OBJECTIVE,
-                color = Color.White,
-                fontSize = 12.sp,
-                textAlign = TextAlign.Center
-            )
-        }
-
-        // --- Main Content (Heading and Sub-text) ---
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(top = 100.dp, start = 24.dp, end = 24.dp)
+            modifier = Modifier.padding(top = 200.dp, start = 24.dp, end = 24.dp)
         ) {
             Text(
                 text = buildAnnotatedString {

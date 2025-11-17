@@ -34,7 +34,7 @@ fun TaskSelectionScreen(mainViewModel: MainViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(24.dp),
+            .padding(24.dp), // Removed safeContentPadding
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -39,13 +40,13 @@ import com.example.task.viewmodel.NoiseTestViewModel
 import com.example.task.viewmodel.TestState
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import kotlin.math.*
-import androidx.compose.runtime.remember // <-- ADDED IMPORT
+import androidx.compose.runtime.remember
 
 // Max value for the gauge
 private const val GAUGE_MAX_DB = 60f
 private const val THRESHOLD_DB = 40f
 
-// FIX: Factory function to ensure the ViewModel instance is remembered across recompositions
+// Factory function to ensure the ViewModel instance is remembered across recompositions
 @Composable
 fun rememberNoiseTestViewModel(mainViewModel: MainViewModel): NoiseTestViewModel {
     return remember { NoiseTestViewModel(mainViewModel = mainViewModel) }
@@ -53,7 +54,6 @@ fun rememberNoiseTestViewModel(mainViewModel: MainViewModel): NoiseTestViewModel
 
 @Composable
 fun NoiseTestScreen(mainViewModel: MainViewModel) {
-    // FIX APPLIED: Use the factory function to get a retained ViewModel instance.
     val viewModel = rememberNoiseTestViewModel(mainViewModel = mainViewModel)
 
     val uiState by viewModel.uiState.collectAsState()
@@ -62,6 +62,7 @@ fun NoiseTestScreen(mainViewModel: MainViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
+            // Removed safeContentPadding() as AppScreen Scaffold handles system bars padding
             .padding(top = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
@@ -94,11 +95,21 @@ fun NoiseTestScreen(mainViewModel: MainViewModel) {
         // Control Button
         Button(
             onClick = {
-                if (uiState.state == TestState.IDLE || uiState.isTestSuccessful == false) {
-                    viewModel.startTest()
+                when (uiState.state) {
+                    TestState.IDLE, TestState.COMPLETED -> {
+                        if (uiState.isTestSuccessful == true) {
+                            // REQUIRED: Navigate only when button is explicitly clicked after a pass
+                            viewModel.navigateToTaskSelection()
+                        } else {
+                            // Start or retry test
+                            viewModel.startTest()
+                        }
+                    }
+                    else -> {} // Do nothing when running/analyzing
                 }
             },
-            enabled = uiState.state == TestState.IDLE || uiState.isTestSuccessful == false,
+            // REQUIRED: Enable if IDLE, Failed (to retry), or Passed (to proceed)
+            enabled = uiState.state == TestState.IDLE || uiState.isTestSuccessful == false || uiState.isTestSuccessful == true,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(24.dp)
@@ -108,7 +119,8 @@ fun NoiseTestScreen(mainViewModel: MainViewModel) {
                     TestState.IDLE -> "Start Test"
                     TestState.RUNNING -> "Testing..."
                     TestState.ANALYZING -> "Analyzing..."
-                    TestState.COMPLETED -> if (uiState.isTestSuccessful == true) "Test Passed" else "Try Again"
+                    // REQUIRED: Changed text from "Test Passed" to "Good to proceed"
+                    TestState.COMPLETED -> if (uiState.isTestSuccessful == true) "Good to proceed" else "Try Again"
                 },
                 modifier = Modifier.padding(vertical = 8.dp)
             )
@@ -116,7 +128,7 @@ fun NoiseTestScreen(mainViewModel: MainViewModel) {
     }
 }
 
-// Custom Composable for the Gauge Meter UI
+// Custom Composable for the Gauge Meter UI (kept the logic from the previous turn)
 @Composable
 fun DecibelMeterGauge(
     liveDb: Float,
@@ -127,56 +139,82 @@ fun DecibelMeterGauge(
     val animatedDb by animateFloatAsState(targetValue = displayDb, label = "dbAnimation")
     val textMeasurer = rememberTextMeasurer()
 
+    // Define colors based on 40 dB threshold
+    val passColor = Color(0xFF4285F4) // Blue - Good to proceed
+    val failColor = Color(0xFFEA4335) // Red - Too noisy
+    val backgroundColor = Color.LightGray.copy(alpha = 0.5f)
+
     Canvas(modifier = modifier) {
         val sweepAngle = 270f
         val startAngle = 135f
         val gaugeWidth = 20.dp.toPx()
         val radius = size.minDimension / 2 - gaugeWidth / 2
         val center = Offset(size.width / 2, size.height / 2)
+        val arcSize = Size(radius * 2, radius * 2)
+        val arcTopLeft = Offset(center.x - radius, center.y - radius)
 
-        // Define colors for the gauge (Green/Blue -> Yellow -> Red)
-        val safeColor = Color(0xFF4CAF50) // Green
-        val warningColor = Color(0xFFFFC107) // Yellow
-        val dangerColor = Color(0xFFF44336) // Red
+        // Calculate sweep angles based on 60 dB max
+        val sweepForThreshold = (THRESHOLD_DB / GAUGE_MAX_DB) * sweepAngle // 40/60 * 270 = 180f
+        val sweepForMax = sweepAngle // 270f
 
-        val gaugeBrush = Brush.sweepGradient(
-            0.0f to safeColor,
-            0.66f to safeColor, // 40dB/60dB * 270/360 = 0.66
-            0.66f to dangerColor,
-            1.0f to dangerColor
-        )
-
-        // 1. Draw Background Arc
+        // 1. Draw Background Arc (The full 0-60 dB gauge in light gray)
         drawArc(
-            color = Color.LightGray.copy(alpha = 0.5f),
+            color = backgroundColor,
             startAngle = startAngle,
-            sweepAngle = sweepAngle,
+            sweepAngle = sweepForMax,
             useCenter = false,
-            topLeft = Offset(center.x - radius, center.y - radius),
-            size = Size(radius * 2, radius * 2),
+            topLeft = arcTopLeft,
+            size = arcSize,
             style = Stroke(width = gaugeWidth, cap = StrokeCap.Round)
         )
 
-        // 2. Draw Active/Color Arc
-        val activeSweep = (animatedDb / GAUGE_MAX_DB) * sweepAngle
+        // 2. Draw Static Fail Zone (Red, 40-60 dB, 90 deg segment)
+        val staticFailSweep = sweepForMax - sweepForThreshold // 270f - 180f = 90f
+        val staticFailStartAngle = startAngle + sweepForThreshold // 135f + 180f = 315f
         drawArc(
-            brush = gaugeBrush,
-            startAngle = startAngle,
-            sweepAngle = activeSweep,
+            color = failColor.copy(alpha = 0.5f), // Dim Red for the static zone
+            startAngle = staticFailStartAngle,
+            sweepAngle = staticFailSweep,
             useCenter = false,
-            topLeft = Offset(center.x - radius, center.y - radius),
-            size = Size(radius * 2, radius * 2),
+            topLeft = arcTopLeft,
+            size = arcSize,
             style = Stroke(width = gaugeWidth, cap = StrokeCap.Round)
         )
 
-        // 3. Draw Needle (representing liveDb for better visual feedback during testing)
+        // 3. Draw Active Pass Fill (Blue, 0 - min(40, live) dB)
+        val activePassDb = animatedDb.coerceAtMost(THRESHOLD_DB)
+        val activePassSweep = (activePassDb / GAUGE_MAX_DB) * sweepAngle
+        drawArc(
+            color = passColor,
+            startAngle = startAngle,
+            sweepAngle = activePassSweep,
+            useCenter = false,
+            topLeft = arcTopLeft,
+            size = arcSize,
+            style = Stroke(width = gaugeWidth, cap = StrokeCap.Round)
+        )
+
+        // 4. Draw Active Fail Fill (Red, 40 - live dB)
+        if (animatedDb > THRESHOLD_DB) {
+            val activeFailDb = animatedDb - THRESHOLD_DB
+            val activeFailSweep = (activeFailDb / GAUGE_MAX_DB) * sweepAngle
+            drawArc(
+                color = failColor,
+                startAngle = staticFailStartAngle, // 315f
+                sweepAngle = activeFailSweep,
+                useCenter = false,
+                topLeft = arcTopLeft,
+                size = arcSize,
+                style = Stroke(width = gaugeWidth, cap = StrokeCap.Round)
+            )
+        }
+
+        // 5. Draw Needle (representing liveDb for better visual feedback during testing)
         if (state == TestState.RUNNING || state == TestState.IDLE) {
-            val needleAngle = startAngle + (liveDb / GAUGE_MAX_DB) * sweepAngle
+            val needleAngle = startAngle + (liveDb.coerceIn(0f, GAUGE_MAX_DB) / GAUGE_MAX_DB) * sweepAngle
             val angleRadians = needleAngle.toDouble() * (PI / 180.0) // Convert Degrees to Radians
             val needleLength = radius * 0.8f
 
-            // FIX: Explicitly convert all components to Double for calculation robustness
-            // then convert the final coordinate back to Float.
             val endX = (center.x.toDouble() + needleLength.toDouble() * cos(angleRadians)).toFloat()
             val endY = (center.y.toDouble() + needleLength.toDouble() * sin(angleRadians)).toFloat()
 
@@ -191,14 +229,13 @@ fun DecibelMeterGauge(
             drawCircle(color = Color.DarkGray, radius = 5.dp.toPx(), center = center)
         }
 
-        // 4. Draw Labels (0, 10, 20, 30, 40, 50, 60)
+        // 6. Draw Labels (0, 10, 20, 30, 40, 50, 60)
         for (i in 0..6) {
             val dbValue = i * 10
             val labelAngle = startAngle + (dbValue / GAUGE_MAX_DB) * sweepAngle
             val angleRadians = labelAngle.toDouble() * (PI / 180.0) // Convert Degrees to Radians
             val labelRadius = radius + 15.dp.toPx()
 
-            // Re-apply the explicit Double calculation for labels as well, just to be safe
             val labelX = (center.x.toDouble() + labelRadius.toDouble() * cos(angleRadians)).toFloat()
             val labelY = (center.y.toDouble() + labelRadius.toDouble() * sin(angleRadians)).toFloat()
 
@@ -216,8 +253,7 @@ fun DecibelMeterGauge(
             )
         }
 
-        // 5. Digital Display in Center
-        // This part correctly uses the animated value for smooth transitions.
+        // 7. Digital Display in Center
         val displayValue = animatedDb.roundToInt().toString()
 
         val valueText = textMeasurer.measure(
