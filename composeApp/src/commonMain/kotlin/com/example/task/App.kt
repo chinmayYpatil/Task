@@ -10,6 +10,7 @@ import com.example.task.navigation.Screen
 import com.example.task.viewmodel.MainViewModel
 import com.example.task.viewmodel.StartViewModel
 import com.example.task.screen.StartScreen
+import com.example.task.screen.NoiseTestScreen
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 // Helper function to get the MainViewModel.
@@ -37,7 +38,8 @@ fun TaskApp() {
                 val startViewModel = rememberStartViewModel(mainViewModel)
                 StartScreen(viewModel = startViewModel)
             }
-
+            // Passing MainViewModel to the screen so it can be accessed by the screen's ViewModel
+            Screen.NoiseTest -> NoiseTestScreen(mainViewModel = mainViewModel)
             else -> {}
         }
     }
