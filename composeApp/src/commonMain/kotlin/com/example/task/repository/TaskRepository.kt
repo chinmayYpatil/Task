@@ -4,7 +4,8 @@ import com.example.task.data.Product
 import com.example.task.data.ProductResponse
 import com.example.task.data.TextReadingTask
 import com.example.task.data.ImageDescriptionTask
-import com.example.task.data.PhotoCaptureTask // <-- NEW IMPORT
+import com.example.task.data.PhotoCaptureTask
+import com.example.task.data.AppTask
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import io.ktor.client.* import io.ktor.client.call.* import io.ktor.client.request.* import io.ktor.client.plugins.contentnegotiation.* import io.ktor.serialization.kotlinx.json.* import io.ktor.http.* import kotlin.random.Random
@@ -23,6 +24,21 @@ private val httpClient = HttpClient {
 
 // Mock class to simulate network/data operations
 class TaskRepository {
+
+    // FIX: Move the in-memory store to a companion object to make it a singleton instance
+    // shared across all instances of TaskRepository created by ViewModels.
+    companion object {
+        private val completedTasks = mutableListOf<AppTask>()
+    }
+
+    /**
+     * Retrieves all locally saved tasks.
+     */
+    suspend fun fetchCompletedTasks(): List<AppTask> {
+        delay(200L) // Simulate network/disk read delay
+        // FIX: Reference the companion object's shared list
+        return completedTasks.toList()
+    }
 
     /**
      * Fetches the product list from the API and extracts the **random** product's description.
@@ -45,7 +61,6 @@ class TaskRepository {
         }
     }
 
-    // NEW FUNCTION
     /**
      * Fetches a random product and extracts the image URL for the Image Description task.
      * @return Pair<String, String?> of (Title/Instruction, Image URL)
@@ -78,12 +93,14 @@ class TaskRepository {
     // Mock function to simulate saving the Text Reading task locally
     suspend fun saveTextReadingTask(task: TextReadingTask) {
         delay(100L) // Simulate disk write delay
+        completedTasks.add(task) // Store the task
         println("TASK SAVED: $task")
     }
 
     // Mock function to simulate saving the Image Description task locally
     suspend fun saveImageDescriptionTask(task: ImageDescriptionTask) {
         delay(100L) // Simulate disk write delay
+        completedTasks.add(task) // Store the task
         println("TASK SAVED: $task")
     }
 
@@ -91,6 +108,7 @@ class TaskRepository {
     // Mock function to simulate saving the Photo Capture task locally
     suspend fun savePhotoCaptureTask(task: PhotoCaptureTask) {
         delay(100L) // Simulate disk write delay
+        completedTasks.add(task) // Store the task
         println("TASK SAVED: $task")
     }
 }

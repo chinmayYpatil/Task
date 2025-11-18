@@ -4,8 +4,23 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlinx.serialization.Serializable
 import kotlin.random.Random
+import kotlin.time.Clock // Explicit import
 
-@Serializable // NEW: Mark class for serialization
+// Utility to generate a pseudo-unique ID for KMP based on timestamp
+@OptIn(ExperimentalTime::class)
+private fun generateTaskId(): String = Clock.System.now().toEpochMilliseconds().toString()
+
+// Define a common sealed interface for all tasks
+sealed interface AppTask {
+    val taskId: String
+    val taskType: String
+    @OptIn(ExperimentalTime::class)
+    val timestamp: Instant
+    val durationSec: Int? // Use nullable duration for PhotoCapture
+}
+
+
+@Serializable
 data class Product(
     val id: Int,
     val title: String,
@@ -18,7 +33,7 @@ data class Product(
         get() = images.randomOrNull()
 }
 
-@Serializable // NEW: Mark class for serialization
+@Serializable
 data class ProductResponse(
     val products: List<Product>,
     val total: Int,
@@ -29,32 +44,38 @@ data class ProductResponse(
 /**
  * Model representing a completed Text Reading Task submission.
  */
-data class TextReadingTask @OptIn(ExperimentalTime::class) constructor(
-    val taskType: String = "text_reading",
+@OptIn(ExperimentalTime::class)
+data class TextReadingTask(
+    override val taskId: String = generateTaskId(), // Added ID
+    override val taskType: String = "Text Reading", // Changed to readable string
     val text: String,
     val audioPath: String,
-    val durationSec: Int,
-    val timestamp: Instant // Using Instant for timestamp
-)
+    override val durationSec: Int,
+    override val timestamp: Instant // Using Instant for timestamp
+) : AppTask
 
 // Model representing a completed Image Description Task submission.
-data class ImageDescriptionTask @OptIn(ExperimentalTime::class) constructor(
-    val taskType: String = "image_description",
+@OptIn(ExperimentalTime::class)
+data class ImageDescriptionTask(
+    override val taskId: String = generateTaskId(), // Added ID
+    override val taskType: String = "Image Description", // Changed to readable string
     val imageUrl: String, // The URL of the image the user described
     val audioPath: String,
-    val durationSec: Int,
-    val timestamp: Instant
-)
+    override val durationSec: Int,
+    override val timestamp: Instant
+) : AppTask
 
 // NEW DATA CLASS
 /**
  * Model representing a completed Photo Capture Task submission.
  */
-data class PhotoCaptureTask @OptIn(ExperimentalTime::class) constructor(
-    val taskType: String = "photo_capture",
+@OptIn(ExperimentalTime::class)
+data class PhotoCaptureTask(
+    override val taskId: String = generateTaskId(), // Added ID
+    override val taskType: String = "Photo Capture", // Changed to readable string
     val imagePath: String, // The local path of the captured photo
     val audioPath: String? = null, // Optional audio description path
-    val durationSec: Int? = null, // Optional audio duration
+    override val durationSec: Int? = null, // Optional audio duration
     val textDescription: String? = null, // Optional text description
-    val timestamp: Instant
-)
+    override val timestamp: Instant
+) : AppTask

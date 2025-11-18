@@ -53,8 +53,8 @@ class MainViewModel : ViewModel() {
                 navigateTo(Screen.TaskSelection)
                 true
             }
-            // For the Start screen, this should be handled by the system (close app/go home)
-            Screen.Start -> false
+            // For the Start and History screens, this should be handled by the system (close app/go home)
+            Screen.Start, Screen.History -> false // UPDATED: Added Screen.History
             else -> false
         }
     }
