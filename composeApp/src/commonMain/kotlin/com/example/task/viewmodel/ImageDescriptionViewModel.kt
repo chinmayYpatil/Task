@@ -256,7 +256,7 @@ class ImageDescriptionViewModel(
                 imageUrl = state.imageUrl,
                 audioPath = state.recordedAudioPath ?: "unknown_path",
                 durationSec = state.lastRecordedDuration,
-                timestamp = Clock.System.now()
+                timestampMs = Clock.System.now().toEpochMilliseconds()
             )
             repository.saveImageDescriptionTask(task)
             mainViewModel.navigateTo(Screen.TaskSelection)

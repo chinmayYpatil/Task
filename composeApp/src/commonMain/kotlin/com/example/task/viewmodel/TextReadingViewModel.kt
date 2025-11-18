@@ -270,7 +270,7 @@ class TextReadingViewModel(
                 text = state.passageText,
                 audioPath = state.recordedAudioPath ?: "unknown_path",
                 durationSec = state.lastRecordedDuration,
-                timestamp = Clock.System.now()
+                timestampMs = Clock.System.now().toEpochMilliseconds()
             )
             repository.saveTextReadingTask(task)
             mainViewModel.navigateTo(Screen.TaskSelection) // Navigate back to Task Selection

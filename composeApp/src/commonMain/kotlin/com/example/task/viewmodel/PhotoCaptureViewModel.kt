@@ -318,7 +318,7 @@ class PhotoCaptureViewModel(
                 audioPath = state.recordedAudioPath.takeIf { hasAudio },
                 durationSec = state.lastRecordedDuration.takeIf { hasAudio },
                 textDescription = state.textDescription.takeIf { hasText },
-                timestamp = Clock.System.now()
+                timestampMs = Clock.System.now().toEpochMilliseconds()
             )
             repository.savePhotoCaptureTask(task)
             mainViewModel.navigateTo(Screen.TaskSelection)

@@ -221,7 +221,7 @@ actual class AudioRecorder {
 
     companion object {
         // Must be initialized by Android code (MainActivity) with a valid directory
-        private var baseDir: File? = null
+        var baseDir: File? = null
 
         fun initialize(cacheDir: File) {
             baseDir = cacheDir

@@ -1,7 +1,12 @@
 package com.example.task.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,11 +17,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -32,11 +43,34 @@ import com.example.task.data.ImageDescriptionTask
 import com.example.task.data.PhotoCaptureTask
 import com.example.task.data.TextReadingTask
 import com.example.task.viewmodel.MainViewModel
+import com.example.task.viewmodel.HistoryUiState // FIX: Import UiState
 import com.example.task.viewmodel.TaskHistoryViewModel
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.Alignment
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.ExperimentalTime // FIX: Import for opt-in
+import kotlin.time.ExperimentalTime
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
+// Helper function to format milliseconds to current / total (mm:ss / mm:ss) - REUSED FROM OTHER SCREENS
+private fun formatTime(milliseconds: Int, totalDurationSec: Int): String {
+    val totalSeconds = totalDurationSec.toLong()
+    val currentSeconds = (milliseconds / 1000).toLong()
+
+    val currentMin = currentSeconds / 60
+    val currentSec = currentSeconds % 60
+
+    val totalMin = totalSeconds / 60
+    val totalSec = totalSeconds % 60
+
+    val current = "${currentMin}:${currentSec.toString().padStart(2, '0')}"
+    val total = "${totalMin}:${totalSec.toString().padStart(2, '0')}"
+
+    return "$current / $total"
+}
 
 // Factory function to retain the ViewModel instance
 @Composable
@@ -47,7 +81,9 @@ fun rememberHistoryViewModel(): TaskHistoryViewModel {
 @Composable
 fun HistoryScreen(mainViewModel: MainViewModel) {
     val viewModel = rememberHistoryViewModel()
-    val uiState by viewModel.uiState.collectAsState()
+
+    // FIX: Explicitly specify the state type for collectAsState
+    val uiState: HistoryUiState by viewModel.uiState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -97,8 +133,15 @@ fun HistoryScreen(mainViewModel: MainViewModel) {
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(uiState.tasks) { task ->
-                    TaskListItem(task = task)
+                // FIX: Use task.taskId as the key
+                items(uiState.tasks, key = { it.taskId }) { task ->
+                    TaskListItem(
+                        task = task,
+                        // Check if this card is the currently selected task
+                        isSelected = uiState.selectedTask?.taskId == task.taskId,
+                        onTaskClick = viewModel::selectTask,
+                        viewModel = viewModel
+                    )
                 }
                 item {
                     Spacer(Modifier.height(8.dp))
@@ -106,7 +149,7 @@ fun HistoryScreen(mainViewModel: MainViewModel) {
             }
         }
 
-        // "See More" button (Re-triggers load/refresh for this prototype)
+        // "See More" button
         Button(
             onClick = viewModel::loadTasks,
             modifier = Modifier
@@ -123,7 +166,6 @@ fun HistoryScreen(mainViewModel: MainViewModel) {
 @Composable
 private fun ReportCard(title: String, value: String) {
     Card(
-        // FIX: Ensure Modifier.weight is correctly applied in the RowScope
         colors = CardDefaults.cardColors(containerColor = Color.LightGray.copy(alpha = 0.2f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -141,23 +183,28 @@ private fun ReportCard(title: String, value: String) {
     }
 }
 
-@OptIn(ExperimentalTime::class) // FIX: Added OptIn for using duration properties
 @Composable
-private fun TaskListItem(task: AppTask) {
-    // KMP-Safe Timestamp Formatting: Placeholder format since kotlinx-datetime is not included.
-    val formattedTimestamp = task.taskId.takeLast(6).let { idSuffix ->
-        // Placeholder format to simulate date/time
-        "24 July, 2024 | 21:40 (ID: $idSuffix)"
+private fun TaskListItem(
+    task: AppTask,
+    isSelected: Boolean,
+    onTaskClick: (AppTask) -> Unit,
+    viewModel: TaskHistoryViewModel
+) {
+    // FIX: Use timestampMs (Long) directly for formatting
+    val formattedTimestamp = task.timestampMs.let { ms ->
+        // Using Java time for display formatting
+        val date = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDateTime()
+        val formatter = DateTimeFormatter.ofPattern("dd MMM, yyyy | HH:mm")
+        date.format(formatter)
     }
 
-    // Format duration text - FIX: Use safe access and Int.seconds
+    @OptIn(ExperimentalTime::class)
     val durationText = task.durationSec?.seconds?.let { duration ->
         val minutes = duration.inWholeMinutes
         val seconds = duration.inWholeSeconds % 60
         String.format("%02dm %02ds", minutes, seconds)
     } ?: "N/A"
 
-    // Determine preview content based on task type
     val preview = when (task) {
         is TextReadingTask -> "Text: ${task.text}"
         is ImageDescriptionTask -> "Image URL: ${task.imageUrl}"
@@ -173,8 +220,14 @@ private fun TaskListItem(task: AppTask) {
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(1.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            // Make the entire card clickable to expand/collapse
+            .clickable { onTaskClick(task) },
+        elevation = CardDefaults.cardElevation(if (isSelected) 4.dp else 1.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
+        )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Task ID and Type
@@ -183,7 +236,6 @@ private fun TaskListItem(task: AppTask) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    // Use a short, human-readable ID based on task type and ID suffix
                     text = "${task.taskType.replace(" ", "")}#${task.taskId.takeLast(6)}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
@@ -198,7 +250,6 @@ private fun TaskListItem(task: AppTask) {
 
             // Duration + Timestamp
             Text(
-                // Combining duration and placeholder timestamp
                 text = "Duration $durationText | $formattedTimestamp",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.Gray
@@ -206,21 +257,163 @@ private fun TaskListItem(task: AppTask) {
 
             Spacer(Modifier.height(8.dp))
 
-            // Preview (Text Snippet/Image Placeholder)
+            // Preview
             Text(
                 text = preview,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+
+            // EXPANDABLE DETAIL VIEW
+            AnimatedVisibility(
+                visible = isSelected,
+                enter = expandVertically(expandFrom = Alignment.Top),
+                exit = shrinkVertically(shrinkTowards = Alignment.Top)
+            ) {
+                Column(modifier = Modifier.padding(top = 16.dp)) {
+                    TaskDetailView(task = task, viewModel = viewModel)
+                }
+            }
         }
     }
 }
 
-@Preview
 @Composable
-fun HistoryScreenPreview() {
-    MaterialTheme {
-        HistoryScreen(mainViewModel = MainViewModel())
+private fun TaskDetailView(task: AppTask, viewModel: TaskHistoryViewModel) {
+    // FIX: Explicitly specify the state type for collectAsState
+    val uiState: HistoryUiState by viewModel.uiState.collectAsState()
+
+    // --- 1. Content Display (Image/Text) ---
+    when (task) {
+        is TextReadingTask -> {
+            Text(
+                text = "Recorded Text:",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            Text(
+                text = task.text,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+        is ImageDescriptionTask -> {
+            Text(
+                text = "Image Described:",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            AsyncImage(
+                model = task.imageUrl, // Image URL from API
+                contentDescription = "Image for Task ${task.taskId}",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .background(Color.LightGray),
+                contentScale = ContentScale.Fit
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+        is PhotoCaptureTask -> {
+            Text(
+                text = "Captured Photo:",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            AsyncImage(
+                model = task.imagePath, // Local file path
+                contentDescription = "Captured Photo for Task ${task.taskId}",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .background(Color.LightGray),
+                contentScale = ContentScale.Fit
+            )
+            Spacer(Modifier.height(8.dp))
+            if (!task.textDescription.isNullOrBlank()) {
+                Text(
+                    text = "Text Description:",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                Text(
+                    text = task.textDescription,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+        }
+    }
+
+    // --- 2. Audio Playback Control (If audio exists) ---
+    val hasAudio = task.durationSec != null && task.durationSec!! > 0
+
+    if (hasAudio) {
+        Text(
+            text = "Recorded Audio Playback:",
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+        )
+
+        AudioPlaybackControl(
+            isPlayingAudio = uiState.isPlayingAudio,
+            playbackPositionMs = uiState.playbackPositionMs,
+            durationSec = task.durationSec!!,
+            onPlayClick = viewModel::onPlayClick,
+            onSeek = viewModel::onSeek
+        )
+    } else if (task is PhotoCaptureTask) {
+        Text(
+            text = "No Audio Description Recorded.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Gray,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun AudioPlaybackControl(
+    isPlayingAudio: Boolean,
+    playbackPositionMs: Int,
+    durationSec: Int,
+    onPlayClick: () -> Unit,
+    onSeek: (Float) -> Unit
+) {
+    val playbackIcon = if (isPlayingAudio) Icons.Filled.Stop else Icons.Filled.PlayArrow
+    val contentDescription = if (isPlayingAudio) "Stop Playback" else "Play Recording"
+
+    val durationMs = durationSec * 1000
+
+    val seekProgressFraction = if (durationMs > 0) playbackPositionMs.toFloat() / durationMs else 0f
+
+    val timeText = formatTime(playbackPositionMs, durationSec)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onPlayClick) {
+            Icon(playbackIcon, contentDescription = contentDescription)
+        }
+
+        Slider(
+            value = seekProgressFraction,
+            onValueChange = { newProgress ->
+                // While dragging, update the position in the ViewModel
+                onSeek(newProgress)
+            },
+            onValueChangeFinished = {
+                // onSeek is called continuously, so this is mostly for semantics
+            },
+            enabled = durationMs > 0,
+            modifier = Modifier.weight(1f)
+        )
+
+        Text(
+            text = timeText,
+            modifier = Modifier.padding(start = 8.dp)
+        )
     }
 }
