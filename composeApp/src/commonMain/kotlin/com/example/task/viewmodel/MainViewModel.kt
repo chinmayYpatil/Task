@@ -28,7 +28,6 @@ class MainViewModel : ViewModel() {
 
     /**
      * Simulates popping the back stack.
-     * Only supports navigation back to a fixed set of screens for this prototype.
      */
     fun popBack(): Boolean {
         return when (_uiState.value.currentScreen) {
@@ -46,6 +45,11 @@ class MainViewModel : ViewModel() {
             }
             // NEW: Add navigation back from ImageDescription to TaskSelection
             Screen.ImageDescription -> {
+                navigateTo(Screen.TaskSelection)
+                true
+            }
+            // NEW: Add navigation back from PhotoCapture to TaskSelection
+            Screen.PhotoCapture -> {
                 navigateTo(Screen.TaskSelection)
                 true
             }

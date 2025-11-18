@@ -37,14 +37,24 @@ data class TextReadingTask @OptIn(ExperimentalTime::class) constructor(
     val timestamp: Instant // Using Instant for timestamp
 )
 
-// NEW DATA CLASS
-/**
- * Model representing a completed Image Description Task submission.
- */
+// Model representing a completed Image Description Task submission.
 data class ImageDescriptionTask @OptIn(ExperimentalTime::class) constructor(
     val taskType: String = "image_description",
     val imageUrl: String, // The URL of the image the user described
     val audioPath: String,
     val durationSec: Int,
+    val timestamp: Instant
+)
+
+// NEW DATA CLASS
+/**
+ * Model representing a completed Photo Capture Task submission.
+ */
+data class PhotoCaptureTask @OptIn(ExperimentalTime::class) constructor(
+    val taskType: String = "photo_capture",
+    val imagePath: String, // The local path of the captured photo
+    val audioPath: String? = null, // Optional audio description path
+    val durationSec: Int? = null, // Optional audio duration
+    val textDescription: String? = null, // Optional text description
     val timestamp: Instant
 )

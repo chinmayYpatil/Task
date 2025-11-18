@@ -47,7 +47,6 @@ import com.example.task.viewmodel.ImageRecordingState
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import kotlin.math.min
 
-// NEW IMPORTS FOR IMAGE DISPLAY (Coil)
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.geometry.Size // Explicit import to resolve compilation conflicts

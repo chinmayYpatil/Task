@@ -6,7 +6,7 @@ sealed interface Screen {
     data object NoiseTest : Screen
     data object TaskSelection : Screen
     data object TextReading : Screen
-    data object ImageDescription : Screen // <-- ADDED SCREEN
-    data object PhotoCapture : Screen
+    data object ImageDescription : Screen
+    data object PhotoCapture : Screen // <-- ADDED SCREEN
     data object History : Screen
 }

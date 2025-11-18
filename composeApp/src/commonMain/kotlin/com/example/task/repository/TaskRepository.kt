@@ -3,7 +3,8 @@ package com.example.task.repository
 import com.example.task.data.Product
 import com.example.task.data.ProductResponse
 import com.example.task.data.TextReadingTask
-import com.example.task.data.ImageDescriptionTask // <-- NEW IMPORT
+import com.example.task.data.ImageDescriptionTask
+import com.example.task.data.PhotoCaptureTask // <-- NEW IMPORT
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import io.ktor.client.* import io.ktor.client.call.* import io.ktor.client.request.* import io.ktor.client.plugins.contentnegotiation.* import io.ktor.serialization.kotlinx.json.* import io.ktor.http.* import kotlin.random.Random
@@ -80,9 +81,15 @@ class TaskRepository {
         println("TASK SAVED: $task")
     }
 
-    // NEW FUNCTION
     // Mock function to simulate saving the Image Description task locally
     suspend fun saveImageDescriptionTask(task: ImageDescriptionTask) {
+        delay(100L) // Simulate disk write delay
+        println("TASK SAVED: $task")
+    }
+
+    // NEW FUNCTION
+    // Mock function to simulate saving the Photo Capture task locally
+    suspend fun savePhotoCaptureTask(task: PhotoCaptureTask) {
         delay(100L) // Simulate disk write delay
         println("TASK SAVED: $task")
     }

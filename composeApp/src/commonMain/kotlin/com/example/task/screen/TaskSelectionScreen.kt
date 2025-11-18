@@ -55,7 +55,7 @@ fun TaskSelectionScreen(mainViewModel: MainViewModel) {
         // 2. Image Description Task
         TaskSelectionButton(
             title = "2. Image Description Task",
-            onClick = { viewModel.onTaskSelected(Screen.ImageDescription) } // <-- UPDATED NAV TARGET
+            onClick = { viewModel.onTaskSelected(Screen.ImageDescription) }
         )
 
         Spacer(Modifier.height(16.dp))
@@ -63,7 +63,7 @@ fun TaskSelectionScreen(mainViewModel: MainViewModel) {
         // 3. Photo Capture Task
         TaskSelectionButton(
             title = "3. Photo Capture Task",
-            onClick = { viewModel.onTaskSelected(Screen.PhotoCapture) }
+            onClick = { viewModel.onTaskSelected(Screen.PhotoCapture) } // <-- UPDATED NAV TARGET
         )
 
         Spacer(Modifier.weight(1f))

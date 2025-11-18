@@ -21,11 +21,13 @@ import com.example.task.navigation.Screen
 import com.example.task.screen.NoiseTestScreen
 import com.example.task.screen.TaskSelectionScreen
 import com.example.task.screen.TextReadingScreen
-import com.example.task.screen.ImageDescriptionScreen // <-- NEW IMPORT
+import com.example.task.screen.ImageDescriptionScreen
+import com.example.task.screen.PhotoCaptureScreen // <-- NEW IMPORT
 import com.example.task.screen.rememberTaskSelectionViewModel
 import com.example.task.viewmodel.MainViewModel
 import com.example.task.viewmodel.StartViewModel
 import com.example.task.screen.StartScreen
+import com.example.task.viewmodel.PhotoCaptureViewModel // <-- NEW IMPORT
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 // Helper function to get the MainViewModel.
@@ -39,6 +41,22 @@ fun rememberMainViewModel(): MainViewModel {
 fun rememberStartViewModel(mainViewModel: MainViewModel): StartViewModel {
     return remember { StartViewModel(mainViewModel) }
 }
+
+// NEW: Define the type alias for the PhotoCaptureViewModel factory
+typealias PhotoCaptureViewModelFactory = @Composable (MainViewModel) -> PhotoCaptureViewModel
+
+@Composable
+fun rememberPhotoCaptureViewModel(mainViewModel: MainViewModel): PhotoCaptureViewModel {
+    // This is the default common constructor fallback
+    return remember { PhotoCaptureViewModel(mainViewModel = mainViewModel) }
+}
+
+@Composable
+fun rememberPhotoCaptureViewModel(mainViewModel: MainViewModel, factory: PhotoCaptureViewModelFactory?): PhotoCaptureViewModel {
+    // Use the provided factory if available (for platform injection), otherwise use the default common constructor
+    return factory?.invoke(mainViewModel) ?: rememberPhotoCaptureViewModel(mainViewModel)
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,7 +88,9 @@ fun AppScreen(
 
 
 @Composable
-fun TaskApp() {
+fun TaskApp(
+    photoCaptureViewModelFactory: PhotoCaptureViewModelFactory? = null // <-- NEW PARAMETER
+) {
     MaterialTheme {
         val mainViewModel = rememberMainViewModel()
         val uiState by mainViewModel.uiState.collectAsState()
@@ -81,14 +101,13 @@ fun TaskApp() {
             Screen.NoiseTest -> "Noise Test"
             Screen.TaskSelection -> "Select Task"
             Screen.TextReading -> "Text Reading Task"
-            Screen.ImageDescription -> "Image Description Task" // <-- ADDED TITLE
-            else -> "App" // Placeholder for other screens
+            Screen.ImageDescription -> "Image Description Task"
+            Screen.PhotoCapture -> "Photo Capture Task"
+            else -> "App"
         }
 
         // Define back action logic
         val onBack: () -> Unit = {
-            // If popBack returns false (i.e., we are on the root screen - Start),
-            // the Android/iOS system should handle closing the app.
             mainViewModel.popBack()
         }
         val canNavigateBack = currentScreen != Screen.Start
@@ -107,7 +126,12 @@ fun TaskApp() {
                 Screen.NoiseTest -> NoiseTestScreen(mainViewModel = mainViewModel)
                 Screen.TaskSelection -> TaskSelectionScreen(mainViewModel = mainViewModel)
                 Screen.TextReading -> TextReadingScreen(mainViewModel = mainViewModel)
-                Screen.ImageDescription -> ImageDescriptionScreen(mainViewModel = mainViewModel) // <-- ADDED SCREEN
+                Screen.ImageDescription -> ImageDescriptionScreen(mainViewModel = mainViewModel)
+                Screen.PhotoCapture -> {
+                    // Inject the platform-specific factory for the ViewModel
+                    val photoCaptureViewModel = rememberPhotoCaptureViewModel(mainViewModel, photoCaptureViewModelFactory)
+                    PhotoCaptureScreen(viewModel = photoCaptureViewModel)
+                }
                 else -> {}
             }
         }
