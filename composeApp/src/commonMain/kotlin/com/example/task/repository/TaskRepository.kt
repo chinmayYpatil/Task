@@ -58,10 +58,17 @@ class TaskRepository {
 
     init {
         // Load tasks from disk on initialization
-        loadTasksFromDisk()
+        loadTasksFromDisk(clearExisting = true)
     }
 
-    private fun loadTasksFromDisk() {
+    /**
+     * Forces a fresh load of all tasks from disk into the in-memory list.
+     */
+    fun reloadCompletedTasks() {
+        loadTasksFromDisk(clearExisting = true)
+    }
+
+    private fun loadTasksFromDisk(clearExisting: Boolean) {
         val jsonString = TaskStorage.loadTasksJson()
         if (jsonString != null) {
             try {
@@ -71,6 +78,7 @@ class TaskRepository {
                     ListSerializer(AppTask::class.serializer()),
                     jsonString
                 )
+                if (clearExisting) completedTasks.clear()
                 completedTasks.addAll(loadedTasks)
                 println("Tasks loaded successfully: ${completedTasks.size}")
             } catch (e: Exception) {

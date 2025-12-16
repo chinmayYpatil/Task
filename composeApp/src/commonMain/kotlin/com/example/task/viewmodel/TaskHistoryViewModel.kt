@@ -77,6 +77,9 @@ class TaskHistoryViewModel(
             // Ensure no playback is active before reloading data
             recorder.stopPlayback()
             try {
+                // NEW: Force the repository to reload its in-memory list from disk on every loadTasks call
+                repository.reloadCompletedTasks()
+
                 // Fetch and sort by newest first - FIX: Use timestampMs
                 val tasks = repository.fetchCompletedTasks().sortedByDescending { it.timestampMs }
 
@@ -176,6 +179,13 @@ class TaskHistoryViewModel(
                 _uiState.update { it.copy(manualSeekPositionMs = targetMs) }
             }
         }
+    }
+
+    /**
+     * Public method to explicitly stop audio playback, used when navigating away from the screen.
+     */
+    fun stopPlayback() {
+        recorder.stopPlayback()
     }
 
     override fun onCleared() {

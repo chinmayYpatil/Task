@@ -6,7 +6,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -45,19 +44,20 @@ import com.example.task.data.TextReadingTask
 import com.example.task.viewmodel.MainViewModel
 import com.example.task.viewmodel.HistoryUiState
 import com.example.task.viewmodel.TaskHistoryViewModel
-import org.jetbrains.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.ContentScale
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
-// UPDATED: Coil 3 uses 'coil3' package
 import coil3.compose.AsyncImage
 
-// UPDATED: Replaced java.time with kotlinx-datetime for Multiplatform compatibility
+// FIX: Complete imports for kotlinx-datetime
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.Clock
+// REMOVED: import kotlin.time.Instant as it conflicts with kotlinx.datetime.Instant
 
 // Helper function to format milliseconds to current / total (mm:ss / mm:ss)
 private fun formatTime(milliseconds: Int, totalDurationSec: Int): String {
@@ -76,14 +76,10 @@ private fun formatTime(milliseconds: Int, totalDurationSec: Int): String {
     return "$current / $total"
 }
 
-@Composable
-fun rememberHistoryViewModel(): TaskHistoryViewModel {
-    return remember { TaskHistoryViewModel() }
-}
+// REMOVED: rememberHistoryViewModel factory function as it's now defined in App.kt
 
 @Composable
-fun HistoryScreen(mainViewModel: MainViewModel) {
-    val viewModel = rememberHistoryViewModel()
+fun HistoryScreen(viewModel: TaskHistoryViewModel) { // FIX: Accepts ViewModel directly
     val uiState: HistoryUiState by viewModel.uiState.collectAsState()
 
     Column(
@@ -179,7 +175,7 @@ private fun ReportCard(title: String, value: String) {
     }
 }
 
-@OptIn(ExperimentalTime::class) // ADD THIS ANNOTATION HERE
+@OptIn(ExperimentalTime::class)
 @Composable
 private fun TaskListItem(
     task: AppTask,
@@ -187,7 +183,7 @@ private fun TaskListItem(
     onTaskClick: (AppTask) -> Unit,
     viewModel: TaskHistoryViewModel
 ) {
-    // The usage of .seconds (from kotlin.time) triggers the requirement
+    // Corrected to use kotlinx-datetime types now that they are imported
     val formattedTimestamp = remember(task.timestampMs) {
         val instant = Instant.fromEpochMilliseconds(task.timestampMs)
         val date = instant.toLocalDateTime(TimeZone.currentSystemDefault())

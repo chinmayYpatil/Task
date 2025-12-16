@@ -106,12 +106,27 @@ class ImageDescriptionViewModel(
             }
         }
 
-        fetchImageTaskData()
+        // Removed call to fetchImageTaskData() - replaced by external call to startNewTask()
     }
 
-    private fun fetchImageTaskData() {
+    // Public function to explicitly reset and start a new Image Description task by fetching the image and instruction
+    fun startNewTask() {
+        recorder.stopPlayback() // Ensure playback is stopped when entering a new task
         viewModelScope.launch {
-            _uiState.update { it.copy(recordingState = ImageRecordingState.LOADING_TASK) }
+            // Reset state
+            _uiState.update {
+                it.copy(
+                    instruction = "Loading task...",
+                    imageUrl = null,
+                    recordingState = ImageRecordingState.LOADING_TASK,
+                    elapsedTime = 0,
+                    lastRecordedDuration = null,
+                    recordedAudioPath = null,
+                    errorMessage = null,
+                    checkboxState = ImageDescriptionCheckboxState(),
+                    manualSeekPositionMs = 0
+                )
+            }
             logDebug(TAG, "Starting image task data fetch...")
             try {
                 val (instruction, imageUrl) = repository.fetchImageDescriptionTaskData()
@@ -126,10 +141,7 @@ class ImageDescriptionViewModel(
                         imageUrl = imageUrl,
                         recordingState = if (success) ImageRecordingState.READY_TO_RECORD else ImageRecordingState.IDLE,
                         errorMessage = if (!success) "Error loading image task data." else null,
-                        lastRecordedDuration = null,
-                        recordedAudioPath = null,
-                        checkboxState = ImageDescriptionCheckboxState(),
-                        manualSeekPositionMs = 0
+                        // rest of state already reset above
                     )
                 }
             } catch (e: Exception) {
@@ -246,12 +258,22 @@ class ImageDescriptionViewModel(
         }
     }
 
+    /**
+     * Public method to explicitly stop audio playback, used when navigating away from the screen.
+     */
+    fun stopPlayback() {
+        recorder.stopPlayback()
+    }
+
     @OptIn(ExperimentalTime::class)
     fun onSubmitClick() {
         val state = _uiState.value
         if (!state.isSubmitEnabled || state.lastRecordedDuration == null || state.imageUrl == null) return
 
         viewModelScope.launch {
+            // FIX: Stop playback before navigation
+            recorder.stopPlayback()
+
             val task = ImageDescriptionTask(
                 imageUrl = state.imageUrl,
                 audioPath = state.recordedAudioPath ?: "unknown_path",

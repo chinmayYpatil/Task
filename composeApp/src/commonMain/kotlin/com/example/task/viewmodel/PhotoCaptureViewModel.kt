@@ -83,11 +83,7 @@ class PhotoCaptureViewModel(
     private var recordingStartTime: Long = 0
 
     init {
-        // Mock permission check, assumes success for KMP UI demonstration
-        viewModelScope.launch {
-            delay(200L)
-            _uiState.update { it.copy(state = PhotoCaptureState.READY_TO_CAPTURE) }
-        }
+        // NEW: Removed initial state setting - now handled by external startNewTask() call
 
         // NEW: Collect results from the Camera Launcher (receives actual file path)
         viewModelScope.launch {
@@ -132,6 +128,37 @@ class PhotoCaptureViewModel(
         }
     }
 
+    // Public method to explicitly reset and start a new Photo Capture task flow.
+    fun startNewTask() {
+        recorder.stopPlayback()
+        // Reset all fields to initial state
+        _uiState.update {
+            it.copy(
+                state = PhotoCaptureState.PERMISSION_CHECK, // Reset state to trigger mock permission check
+                capturedImagePath = null,
+                textDescription = "",
+                recordedAudioPath = null,
+                lastRecordedDuration = null,
+                elapsedTime = 0,
+                errorMessage = null,
+                checkboxState = PhotoCaptureCheckboxState(),
+                manualSeekPositionMs = 0
+            )
+        }
+        // Simulate permission check success and transition to READY_TO_CAPTURE
+        viewModelScope.launch {
+            delay(200L)
+            _uiState.update {
+                // Only update if the user hasn't already taken an action and changed the state
+                if (it.state == PhotoCaptureState.PERMISSION_CHECK) {
+                    it.copy(state = PhotoCaptureState.READY_TO_CAPTURE)
+                } else {
+                    it
+                }
+            }
+        }
+    }
+
     // --- UI Actions ---
 
     // UPDATED: Now calls the injected launcher
@@ -148,8 +175,6 @@ class PhotoCaptureViewModel(
     fun onTextDescriptionChange(newText: String) {
         _uiState.update { it.copy(textDescription = newText) }
     }
-
-    // ... rest of the ViewModel logic remains the same (audio, seek, submit) ...
 
     fun onMicClick() {
         when (_uiState.value.state) {
@@ -268,6 +293,13 @@ class PhotoCaptureViewModel(
         }
     }
 
+    /**
+     * Public method to explicitly stop audio playback, used when navigating away from the screen.
+     */
+    fun stopPlayback() {
+        recorder.stopPlayback()
+    }
+
     fun onPlayClick() {
         val state = _uiState.value
         val path = state.recordedAudioPath
@@ -313,6 +345,9 @@ class PhotoCaptureViewModel(
         }
 
         viewModelScope.launch {
+            // FIX: Stop playback before navigation
+            recorder.stopPlayback()
+
             val task = PhotoCaptureTask(
                 imagePath = state.capturedImagePath,
                 audioPath = state.recordedAudioPath.takeIf { hasAudio },

@@ -37,16 +37,14 @@ actual class AudioRecorder {
     // Tracks the start time of playback using TimeMark
     private var playbackStartMark: TimeMark? = null
 
-    // FIX: Replaced deprecated getTimeMillis() with Clock.System.now().toEpochMilliseconds()
     @OptIn(ExperimentalTime::class)
     actual fun startRecording(): String? {
         if (_isRecording.value) return recordingPath
 
-        _isRecording.value = true
-        // FIX: Use Clock.System for non-deprecated timestamp generation
-        recordingPath = "/mock/ios/audio/${Clock.System.now().toEpochMilliseconds()}.mp3"
+        println("IOS_AUDIO_CHECK: Simulating microphone permission check. (Actual native implementation required)")
 
-        // Real implementation would initialize AVAudioRecorder here.
+        _isRecording.value = true
+        recordingPath = "/mock/ios/audio/${Clock.System.now().toEpochMilliseconds()}.mp3"
 
         return recordingPath
     }

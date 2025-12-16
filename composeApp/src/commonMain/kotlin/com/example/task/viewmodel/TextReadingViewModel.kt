@@ -111,12 +111,23 @@ class TextReadingViewModel(
             }
         }
 
-        fetchPassage()
+        // Removed call to fetchPassage() - replaced by external call to startNewTask()
     }
 
-    private fun fetchPassage() {
+    // Public function to explicitly reset and start a new Text Reading task by fetching the text
+    fun startNewTask() {
+        recorder.stopPlayback() // Ensure playback is stopped when entering a new task
         viewModelScope.launch {
-            _uiState.update { it.copy(recordingState = TextRecordingState.LOADING_TEXT) } // UPDATED
+            _uiState.update { it.copy(
+                recordingState = TextRecordingState.LOADING_TEXT,
+                lastRecordedDuration = null,
+                recordedAudioPath = null,
+                errorMessage = null,
+                elapsedTime = 0,
+                checkboxState = CheckboxState(),
+                lastSpokenWordIndex = -1,
+                manualSeekPositionMs = 0
+            ) }
             try {
                 // Call the updated repository function which now attempts a real API fetch
                 val text = repository.fetchTextPassage()
@@ -129,9 +140,6 @@ class TextReadingViewModel(
                         lastSpokenWordIndex = -1, // Reset to initial state
                         recordingState = if (text.startsWith("Error")) TextRecordingState.IDLE else TextRecordingState.READY_TO_RECORD, // UPDATED
                         errorMessage = if (text.startsWith("Error")) text else null, // Show error message if fetch failed
-                        lastRecordedDuration = null,
-                        recordedAudioPath = null, // Reset path
-                        checkboxState = CheckboxState(),
                         manualSeekPositionMs = 0 // Reset manual seek
                     )
                 }
@@ -141,6 +149,7 @@ class TextReadingViewModel(
             }
         }
     }
+
 
     /**
      * Toggles recording based on current state (single tap).
@@ -235,6 +244,7 @@ class TextReadingViewModel(
 
     fun onRecordAgainClick() {
         recorder.stopPlayback() // Ensure playback is stopped before restarting task
+        // We only reset recording-related state, keeping the passage text.
         _uiState.update {
             it.copy(
                 recordingState = TextRecordingState.READY_TO_RECORD, // UPDATED
@@ -260,12 +270,22 @@ class TextReadingViewModel(
         }
     }
 
+    /**
+     * Public method to explicitly stop audio playback, used when navigating away from the screen.
+     */
+    fun stopPlayback() {
+        recorder.stopPlayback()
+    }
+
     @OptIn(ExperimentalTime::class)
     fun onSubmitClick() {
         val state = _uiState.value
         if (!state.isSubmitEnabled || state.lastRecordedDuration == null) return
 
         viewModelScope.launch {
+            // FIX: Stop playback before navigation
+            recorder.stopPlayback()
+
             val task = TextReadingTask(
                 text = state.passageText,
                 audioPath = state.recordedAudioPath ?: "unknown_path",

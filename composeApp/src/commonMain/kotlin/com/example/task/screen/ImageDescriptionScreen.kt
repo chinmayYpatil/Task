@@ -58,10 +58,7 @@ private fun logDebug(tag: String, message: String) {
 }
 private const val TAG_UI = "ImageDescApp_UI"
 
-@Composable
-fun rememberImageDescriptionViewModel(mainViewModel: MainViewModel): ImageDescriptionViewModel {
-    return remember { ImageDescriptionViewModel(mainViewModel = mainViewModel) }
-}
+// REMOVED: rememberImageDescriptionViewModel factory function as it's now defined in App.kt
 
 private fun formatTime(milliseconds: Int, totalDurationSec: Int): String {
     val totalSeconds = totalDurationSec.toLong()
@@ -81,8 +78,7 @@ private fun formatTime(milliseconds: Int, totalDurationSec: Int): String {
 
 
 @Composable
-fun ImageDescriptionScreen(mainViewModel: MainViewModel) {
-    val viewModel = rememberImageDescriptionViewModel(mainViewModel = mainViewModel)
+fun ImageDescriptionScreen(viewModel: ImageDescriptionViewModel) { // FIX: Accepts ViewModel directly
     val uiState by viewModel.uiState.collectAsState()
 
     Column(
@@ -368,6 +364,6 @@ private fun CheckRow(
 @Composable
 fun ImageDescriptionScreenPreview() {
     MaterialTheme {
-        ImageDescriptionScreen(mainViewModel = MainViewModel())
+        ImageDescriptionScreen(viewModel = ImageDescriptionViewModel(mainViewModel = MainViewModel()))
     }
 }

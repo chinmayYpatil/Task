@@ -51,11 +51,7 @@ import com.example.task.viewmodel.TextReadingViewModel
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import kotlin.math.min
 
-// Factory function to retain the ViewModel instance
-@Composable
-fun rememberTextReadingViewModel(mainViewModel: MainViewModel): TextReadingViewModel {
-    return remember { TextReadingViewModel(mainViewModel = mainViewModel) }
-}
+// REMOVED: rememberTextReadingViewModel factory function as it's now defined in App.kt
 
 // Helper function to format milliseconds to current / total (mm:ss / mm:ss)
 private fun formatTime(milliseconds: Int, totalDurationSec: Int): String {
@@ -76,8 +72,7 @@ private fun formatTime(milliseconds: Int, totalDurationSec: Int): String {
 
 
 @Composable
-fun TextReadingScreen(mainViewModel: MainViewModel) {
-    val viewModel = rememberTextReadingViewModel(mainViewModel = mainViewModel)
+fun TextReadingScreen(viewModel: TextReadingViewModel) { // FIX: Accepts ViewModel directly
     val uiState by viewModel.uiState.collectAsState()
 
     Column(
