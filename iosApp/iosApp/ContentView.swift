@@ -4,6 +4,7 @@ import ComposeApp
 
 struct ComposeView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
+        // Calls the Kotlin function MainViewController() which is exposed via MainViewControllerKt
         MainViewControllerKt.MainViewController()
     }
 
@@ -16,6 +17,3 @@ struct ContentView: View {
             .ignoresSafeArea()
     }
 }
-
-
-

@@ -43,19 +43,23 @@ import com.example.task.data.ImageDescriptionTask
 import com.example.task.data.PhotoCaptureTask
 import com.example.task.data.TextReadingTask
 import com.example.task.viewmodel.MainViewModel
-import com.example.task.viewmodel.HistoryUiState // FIX: Import UiState
+import com.example.task.viewmodel.HistoryUiState
 import com.example.task.viewmodel.TaskHistoryViewModel
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.Alignment
-import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
-// Helper function to format milliseconds to current / total (mm:ss / mm:ss) - REUSED FROM OTHER SCREENS
+// UPDATED: Coil 3 uses 'coil3' package
+import coil3.compose.AsyncImage
+
+// UPDATED: Replaced java.time with kotlinx-datetime for Multiplatform compatibility
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+
+// Helper function to format milliseconds to current / total (mm:ss / mm:ss)
 private fun formatTime(milliseconds: Int, totalDurationSec: Int): String {
     val totalSeconds = totalDurationSec.toLong()
     val currentSeconds = (milliseconds / 1000).toLong()
@@ -72,7 +76,6 @@ private fun formatTime(milliseconds: Int, totalDurationSec: Int): String {
     return "$current / $total"
 }
 
-// Factory function to retain the ViewModel instance
 @Composable
 fun rememberHistoryViewModel(): TaskHistoryViewModel {
     return remember { TaskHistoryViewModel() }
@@ -81,8 +84,6 @@ fun rememberHistoryViewModel(): TaskHistoryViewModel {
 @Composable
 fun HistoryScreen(mainViewModel: MainViewModel) {
     val viewModel = rememberHistoryViewModel()
-
-    // FIX: Explicitly specify the state type for collectAsState
     val uiState: HistoryUiState by viewModel.uiState.collectAsState()
 
     Column(
@@ -91,7 +92,6 @@ fun HistoryScreen(mainViewModel: MainViewModel) {
             .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 24.dp)
     ) {
-        // Work Report Header
         Text(
             text = "Work Report",
             style = MaterialTheme.typography.titleLarge,
@@ -108,7 +108,6 @@ fun HistoryScreen(mainViewModel: MainViewModel) {
 
         Spacer(Modifier.height(32.dp))
 
-        // Tasks List
         Text(
             text = "Tasks",
             style = MaterialTheme.typography.titleLarge,
@@ -133,11 +132,9 @@ fun HistoryScreen(mainViewModel: MainViewModel) {
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // FIX: Use task.taskId as the key
                 items(uiState.tasks, key = { it.taskId }) { task ->
                     TaskListItem(
                         task = task,
-                        // Check if this card is the currently selected task
                         isSelected = uiState.selectedTask?.taskId == task.taskId,
                         onTaskClick = viewModel::selectTask,
                         viewModel = viewModel
@@ -149,7 +146,6 @@ fun HistoryScreen(mainViewModel: MainViewModel) {
             }
         }
 
-        // "See More" button
         Button(
             onClick = viewModel::loadTasks,
             modifier = Modifier
@@ -183,6 +179,7 @@ private fun ReportCard(title: String, value: String) {
     }
 }
 
+@OptIn(ExperimentalTime::class) // ADD THIS ANNOTATION HERE
 @Composable
 private fun TaskListItem(
     task: AppTask,
@@ -190,20 +187,21 @@ private fun TaskListItem(
     onTaskClick: (AppTask) -> Unit,
     viewModel: TaskHistoryViewModel
 ) {
-    // FIX: Use timestampMs (Long) directly for formatting
-    val formattedTimestamp = task.timestampMs.let { ms ->
-        // Using Java time for display formatting
-        val date = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDateTime()
-        val formatter = DateTimeFormatter.ofPattern("dd MMM, yyyy | HH:mm")
-        date.format(formatter)
+    // The usage of .seconds (from kotlin.time) triggers the requirement
+    val formattedTimestamp = remember(task.timestampMs) {
+        val instant = Instant.fromEpochMilliseconds(task.timestampMs)
+        val date = instant.toLocalDateTime(TimeZone.currentSystemDefault())
+        val month = date.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
+        "${date.dayOfMonth.toString().padStart(2, '0')} $month, ${date.year} | ${date.hour.toString().padStart(2, '0')}:${date.minute.toString().padStart(2, '0')}"
     }
 
-    @OptIn(ExperimentalTime::class)
+    // This property uses .seconds which is an ExperimentalTime API
     val durationText = task.durationSec?.seconds?.let { duration ->
         val minutes = duration.inWholeMinutes
         val seconds = duration.inWholeSeconds % 60
-        String.format("%02dm %02ds", minutes, seconds)
+        "${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s"
     } ?: "N/A"
+
 
     val preview = when (task) {
         is TextReadingTask -> "Text: ${task.text}"
@@ -222,7 +220,6 @@ private fun TaskListItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            // Make the entire card clickable to expand/collapse
             .clickable { onTaskClick(task) },
         elevation = CardDefaults.cardElevation(if (isSelected) 4.dp else 1.dp),
         colors = CardDefaults.cardColors(
@@ -230,7 +227,6 @@ private fun TaskListItem(
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Task ID and Type
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -248,7 +244,6 @@ private fun TaskListItem(
             }
             Spacer(Modifier.height(4.dp))
 
-            // Duration + Timestamp
             Text(
                 text = "Duration $durationText | $formattedTimestamp",
                 style = MaterialTheme.typography.bodySmall,
@@ -257,7 +252,6 @@ private fun TaskListItem(
 
             Spacer(Modifier.height(8.dp))
 
-            // Preview
             Text(
                 text = preview,
                 style = MaterialTheme.typography.bodyMedium,
@@ -265,7 +259,6 @@ private fun TaskListItem(
                 overflow = TextOverflow.Ellipsis
             )
 
-            // EXPANDABLE DETAIL VIEW
             AnimatedVisibility(
                 visible = isSelected,
                 enter = expandVertically(expandFrom = Alignment.Top),
@@ -281,10 +274,8 @@ private fun TaskListItem(
 
 @Composable
 private fun TaskDetailView(task: AppTask, viewModel: TaskHistoryViewModel) {
-    // FIX: Explicitly specify the state type for collectAsState
     val uiState: HistoryUiState by viewModel.uiState.collectAsState()
 
-    // --- 1. Content Display (Image/Text) ---
     when (task) {
         is TextReadingTask -> {
             Text(
@@ -305,7 +296,7 @@ private fun TaskDetailView(task: AppTask, viewModel: TaskHistoryViewModel) {
                 modifier = Modifier.padding(bottom = 4.dp)
             )
             AsyncImage(
-                model = task.imageUrl, // Image URL from API
+                model = task.imageUrl,
                 contentDescription = "Image for Task ${task.taskId}",
                 modifier = Modifier
                     .fillMaxWidth()
@@ -322,7 +313,7 @@ private fun TaskDetailView(task: AppTask, viewModel: TaskHistoryViewModel) {
                 modifier = Modifier.padding(bottom = 4.dp)
             )
             AsyncImage(
-                model = task.imagePath, // Local file path
+                model = task.imagePath,
                 contentDescription = "Captured Photo for Task ${task.taskId}",
                 modifier = Modifier
                     .fillMaxWidth()
@@ -346,7 +337,6 @@ private fun TaskDetailView(task: AppTask, viewModel: TaskHistoryViewModel) {
         }
     }
 
-    // --- 2. Audio Playback Control (If audio exists) ---
     val hasAudio = task.durationSec != null && task.durationSec!! > 0
 
     if (hasAudio) {
@@ -383,11 +373,8 @@ private fun AudioPlaybackControl(
 ) {
     val playbackIcon = if (isPlayingAudio) Icons.Filled.Stop else Icons.Filled.PlayArrow
     val contentDescription = if (isPlayingAudio) "Stop Playback" else "Play Recording"
-
     val durationMs = durationSec * 1000
-
     val seekProgressFraction = if (durationMs > 0) playbackPositionMs.toFloat() / durationMs else 0f
-
     val timeText = formatTime(playbackPositionMs, durationSec)
 
     Row(
@@ -401,11 +388,7 @@ private fun AudioPlaybackControl(
         Slider(
             value = seekProgressFraction,
             onValueChange = { newProgress ->
-                // While dragging, update the position in the ViewModel
                 onSeek(newProgress)
-            },
-            onValueChangeFinished = {
-                // onSeek is called continuously, so this is mostly for semantics
             },
             enabled = durationMs > 0,
             modifier = Modifier.weight(1f)

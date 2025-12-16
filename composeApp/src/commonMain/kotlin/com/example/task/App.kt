@@ -18,63 +18,51 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.task.navigation.Screen
 import com.example.task.screen.NoiseTestScreen
 import com.example.task.screen.TaskSelectionScreen
 import com.example.task.screen.TextReadingScreen
 import com.example.task.screen.ImageDescriptionScreen
 import com.example.task.screen.PhotoCaptureScreen
-import com.example.task.screen.rememberTaskSelectionViewModel
 import com.example.task.viewmodel.MainViewModel
 import com.example.task.viewmodel.StartViewModel
 import com.example.task.screen.StartScreen
 import com.example.task.viewmodel.PhotoCaptureViewModel
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
-// NEW IMPORTS for bottom navigation
+// Bottom navigation imports
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import com.example.task.screen.HistoryScreen
 
-// Helper function to get the MainViewModel.
+// Type aliases for ViewModel factories to support platform-specific injection
+typealias MainViewModelFactory = @Composable () -> MainViewModel
+typealias PhotoCaptureViewModelFactory = @Composable (MainViewModel) -> PhotoCaptureViewModel
+
 @Composable
-fun rememberMainViewModel(): MainViewModel {
-    return viewModel()
+fun rememberMainViewModel(factory: MainViewModelFactory?): MainViewModel {
+    // Uses the provided factory (for iOS) or manually instantiates for other platforms
+    return factory?.invoke() ?: remember { MainViewModel() }
 }
 
-// Factory to create the StartViewModel, injecting the MainViewModel dependency.
 @Composable
 fun rememberStartViewModel(mainViewModel: MainViewModel): StartViewModel {
     return remember { StartViewModel(mainViewModel) }
 }
 
-// NEW: Define the type alias for the PhotoCaptureViewModel factory
-typealias PhotoCaptureViewModelFactory = @Composable (MainViewModel) -> PhotoCaptureViewModel
-
-@Composable
-fun rememberPhotoCaptureViewModel(mainViewModel: MainViewModel): PhotoCaptureViewModel {
-    // This is the default common constructor fallback
-    return remember { PhotoCaptureViewModel(mainViewModel = mainViewModel) }
-}
-
 @Composable
 fun rememberPhotoCaptureViewModel(mainViewModel: MainViewModel, factory: PhotoCaptureViewModelFactory?): PhotoCaptureViewModel {
-    // Use the provided factory if available (for platform injection), otherwise use the default common constructor
-    return factory?.invoke(mainViewModel) ?: rememberPhotoCaptureViewModel(mainViewModel)
+    return factory?.invoke(mainViewModel) ?: remember { PhotoCaptureViewModel(mainViewModel) }
 }
-
-
-// REMOVED: AppScreen composable is removed, its functionality is merged into TaskApp.
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskApp(
-    photoCaptureViewModelFactory: PhotoCaptureViewModelFactory? = null // <-- NEW PARAMETER
+    mainViewModelFactory: MainViewModelFactory? = null,
+    photoCaptureViewModelFactory: PhotoCaptureViewModelFactory? = null
 ) {
     MaterialTheme {
-        val mainViewModel = rememberMainViewModel()
+        val mainViewModel = rememberMainViewModel(mainViewModelFactory)
         val uiState by mainViewModel.uiState.collectAsState()
 
         val currentScreen = uiState.currentScreen
@@ -85,18 +73,12 @@ fun TaskApp(
             Screen.TextReading -> "Text Reading Task"
             Screen.ImageDescription -> "Image Description Task"
             Screen.PhotoCapture -> "Photo Capture Task"
-            Screen.History -> "Task History" // NEW Title
+            Screen.History -> "Task History"
             else -> "App"
         }
 
-        // --- Back Navigation Logic ---
-        val onBack: () -> Unit = {
-            mainViewModel.popBack()
-        }
-        // Only show back button if not on a root screen (Start or History)
+        val onBack: () -> Unit = { mainViewModel.popBack() }
         val canNavigateBack = currentScreen != Screen.Start && currentScreen != Screen.History
-
-        // --- Bottom Navigation Logic ---
         val navItems = listOf(Screen.Start, Screen.History)
 
         Scaffold(
@@ -115,10 +97,6 @@ fun TaskApp(
             bottomBar = {
                 NavigationBar {
                     navItems.forEach { screen ->
-                        // Highlight logic: only Start and History are selectable from the bar
-                        val isSelected = currentScreen == screen ||
-                                (screen == Screen.Start && currentScreen != Screen.History && currentScreen != Screen.Start)
-
                         NavigationBarItem(
                             icon = {
                                 Icon(
@@ -127,58 +105,32 @@ fun TaskApp(
                                         Screen.History -> Icons.Filled.History
                                         else -> Icons.Filled.Home
                                     },
-                                    contentDescription = when (screen) {
-                                        Screen.Start -> "Home"
-                                        Screen.History -> "History"
-                                        else -> ""
-                                    }
+                                    contentDescription = null
                                 )
                             },
-                            label = {
-                                Text(
-                                    when (screen) {
-                                        Screen.Start -> "Home"
-                                        Screen.History -> "History"
-                                        else -> ""
-                                    }
-                                )
-                            },
-                            selected = currentScreen == screen, // Highlight only if exactly on the root screen
-                            onClick = {
-                                mainViewModel.navigateTo(screen)
-                            }
+                            label = { Text(if (screen == Screen.Start) "Home" else "History") },
+                            selected = currentScreen == screen,
+                            onClick = { mainViewModel.navigateTo(screen) }
                         )
                     }
                 }
             }
         ) { paddingValues ->
             Box(modifier = Modifier.padding(paddingValues)) {
-                // Global Navigation Host
                 when (currentScreen) {
-                    Screen.Start -> {
-                        val startViewModel = rememberStartViewModel(mainViewModel)
-                        StartScreen(viewModel = startViewModel)
-                    }
+                    Screen.Start -> StartScreen(viewModel = rememberStartViewModel(mainViewModel))
                     Screen.NoiseTest -> NoiseTestScreen(mainViewModel = mainViewModel)
                     Screen.TaskSelection -> TaskSelectionScreen(mainViewModel = mainViewModel)
                     Screen.TextReading -> TextReadingScreen(mainViewModel = mainViewModel)
                     Screen.ImageDescription -> ImageDescriptionScreen(mainViewModel = mainViewModel)
                     Screen.PhotoCapture -> {
-                        // Inject the platform-specific factory for the ViewModel
                         val photoCaptureViewModel = rememberPhotoCaptureViewModel(mainViewModel, photoCaptureViewModelFactory)
                         PhotoCaptureScreen(viewModel = photoCaptureViewModel)
                     }
-                    Screen.History -> HistoryScreen(mainViewModel = mainViewModel)// NEW Screen
+                    Screen.History -> HistoryScreen(mainViewModel = mainViewModel)
                     else -> {}
                 }
             }
         }
     }
-}
-
-
-@Preview
-@Composable
-fun TaskAppAndroidPreview() {
-    TaskApp()
 }

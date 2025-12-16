@@ -47,23 +47,22 @@ import com.example.task.viewmodel.ImageRecordingState
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import kotlin.math.min
 
-import coil.compose.AsyncImage
+// UPDATED: Coil 3 package name
+import coil3.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.geometry.Size // Explicit import to resolve compilation conflicts
+import androidx.compose.ui.geometry.Size
 
 // Mock logger
 private fun logDebug(tag: String, message: String) {
     println("DEBUG | $tag: $message")
 }
-private const val TAG_UI = "ImageDescApp_UI" // Log Tag for the Screen
+private const val TAG_UI = "ImageDescApp_UI"
 
-// Factory function to retain the ViewModel instance
 @Composable
 fun rememberImageDescriptionViewModel(mainViewModel: MainViewModel): ImageDescriptionViewModel {
     return remember { ImageDescriptionViewModel(mainViewModel = mainViewModel) }
 }
 
-// Helper function to format milliseconds to current / total (mm:ss / mm:ss)
 private fun formatTime(milliseconds: Int, totalDurationSec: Int): String {
     val totalSeconds = totalDurationSec.toLong()
     val currentSeconds = (milliseconds / 1000).toLong()
@@ -93,7 +92,6 @@ fun ImageDescriptionScreen(mainViewModel: MainViewModel) {
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 1. Image/Display Area
         Text(
             text = "Image to describe:",
             style = MaterialTheme.typography.titleMedium,
@@ -104,9 +102,8 @@ fun ImageDescriptionScreen(mainViewModel: MainViewModel) {
                 .fillMaxWidth()
                 .weight(1f)
                 .background(Color.DarkGray.copy(alpha = 0.5f))
-                .padding(1.dp) // Minor padding for border effect
+                .padding(1.dp)
         ) {
-            // FIX: Added non-null assertion (!!) to resolve smart cast error when passing nullable state property
             if (uiState.imageUrl != null && uiState.recordingState != ImageRecordingState.LOADING_TASK) {
                 NetworkImageDisplay(url = uiState.imageUrl!!)
             }
@@ -118,7 +115,6 @@ fun ImageDescriptionScreen(mainViewModel: MainViewModel) {
 
         Spacer(Modifier.height(16.dp))
 
-        // 2. Instructions
         Text(
             text = uiState.instruction,
             style = MaterialTheme.typography.bodyMedium,
@@ -126,7 +122,6 @@ fun ImageDescriptionScreen(mainViewModel: MainViewModel) {
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        // 3. Mic Button / Recording Indicator
         when (uiState.recordingState) {
             ImageRecordingState.READY_TO_RECORD, ImageRecordingState.RECORDING -> {
                 ImageDescriptionRecordButton(
@@ -136,7 +131,6 @@ fun ImageDescriptionScreen(mainViewModel: MainViewModel) {
                 )
             }
             ImageRecordingState.REVIEW -> {
-                // Recording Results Area
                 ImageDescriptionRecordingResultArea(
                     uiState = uiState,
                     viewModel = viewModel
@@ -149,7 +143,6 @@ fun ImageDescriptionScreen(mainViewModel: MainViewModel) {
 
         Spacer(Modifier.height(32.dp))
 
-        // 4. Error Message (Visible in any state)
         if (uiState.errorMessage != null) {
             Text(
                 text = uiState.errorMessage!!,
@@ -160,7 +153,6 @@ fun ImageDescriptionScreen(mainViewModel: MainViewModel) {
 
         Spacer(Modifier.height(16.dp))
 
-        // 5. Submit Button (Visible only in Review state)
         if (uiState.recordingState == ImageRecordingState.REVIEW) {
             Button(
                 onClick = viewModel::onSubmitClick,
@@ -173,21 +165,14 @@ fun ImageDescriptionScreen(mainViewModel: MainViewModel) {
     }
 }
 
-/**
- * REPLACEMENT for ImagePlaceholder: A composable that visually represents a loaded image.
- * This component is responsible for displaying the network image based on the URL.
- */
 @Composable
 private fun NetworkImageDisplay(url: String) {
     logDebug(TAG_UI, "NetworkImageDisplay rendering for URL: $url")
-
-    // FIX: Use Coil's AsyncImage and REMOVE the problematic 'error' composable parameter
-    // to resolve the compilation errors (Argument type mismatch and @Composable context).
     AsyncImage(
         model = url,
         contentDescription = "Image to describe",
         modifier = Modifier.fillMaxSize(),
-        contentScale = ContentScale.Fit, // Use Fit to ensure the whole image fits in the allocated box
+        contentScale = ContentScale.Fit,
     )
 }
 
@@ -227,7 +212,7 @@ private fun ImageDescriptionRecordButton(
                     useCenter = false,
                     style = Stroke(width = strokeWidth),
                     topLeft = Offset((size.width - radius * 2) / 2, (size.height - radius * 2) / 2),
-                    size = Size(radius * 2, radius * 2) // Using the explicit import Size
+                    size = Size(radius * 2, radius * 2)
                 )
             }
 
@@ -304,7 +289,6 @@ private fun ImageDescriptionRecordingResultArea(
     val timeText = formatTime(displayPositionMs, durationSec)
 
 
-    // 1. Playback Bar
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -333,21 +317,17 @@ private fun ImageDescriptionRecordingResultArea(
         )
     }
 
-    // 2. Checkboxes
     Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-        // Checkbox 1: No background noise
         CheckRow(
             text = "No background noise",
             checked = uiState.checkboxState.noNoise,
             onCheckedChange = { viewModel.onCheckboxToggled(0, it) }
         )
-        // Checkbox 2: No mistakes while describing
         CheckRow(
             text = "No mistakes while describing",
             checked = uiState.checkboxState.noMistakes,
             onCheckedChange = { viewModel.onCheckboxToggled(1, it) }
         )
-        // Checkbox 3: Hindi Check (re-used)
         CheckRow(
             text = "Beech me koi galti nahi hai",
             checked = uiState.checkboxState.hindiCheck,
@@ -355,7 +335,6 @@ private fun ImageDescriptionRecordingResultArea(
         )
     }
 
-    // 3. Record Again Button
     Button(
         onClick = viewModel::onRecordAgainClick,
         modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -384,7 +363,6 @@ private fun CheckRow(
         Checkbox(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
-
 
 @Preview
 @Composable

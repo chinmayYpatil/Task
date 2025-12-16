@@ -51,9 +51,8 @@ import com.example.task.viewmodel.PhotoCaptureViewModel
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import kotlin.math.min
 
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
-// Removed redundant Size import
 
 // Reusing helper function from other screens
 private fun formatTime(milliseconds: Int, totalDurationSec: Int): String {
@@ -107,7 +106,6 @@ fun PhotoCaptureScreen(viewModel: PhotoCaptureViewModel) {
                     elapsedTime = uiState.elapsedTime,
                     onClick = viewModel::onMicClick
                 )
-                // Retake button visible after capture and during recording
                 TextButton(onClick = viewModel::onRetakePhotoClick) {
                     Text("Retake Photo")
                 }
@@ -125,7 +123,6 @@ fun PhotoCaptureScreen(viewModel: PhotoCaptureViewModel) {
                         Text("Retake Photo")
                     }
                     if ((uiState.lastRecordedDuration ?: 0) > 0) {
-                        // Only show record again button if audio was captured
                         TextButton(onClick = viewModel::onRecordAgainClick) {
                             Text("Record Again")
                         }
@@ -133,12 +130,10 @@ fun PhotoCaptureScreen(viewModel: PhotoCaptureViewModel) {
                 }
             }
             else -> {
-                // Spacer for other states (PERMISSION_CHECK, READY_TO_CAPTURE)
                 Spacer(Modifier.height(100.dp))
             }
         }
 
-        // 4. Error Message
         if (uiState.errorMessage != null) {
             Text(
                 text = uiState.errorMessage!!,
@@ -150,7 +145,6 @@ fun PhotoCaptureScreen(viewModel: PhotoCaptureViewModel) {
 
         Spacer(Modifier.weight(1f))
 
-        // 5. Submit Button
         Button(
             onClick = viewModel::onSubmitClick,
             enabled = uiState.isSubmitEnabled,
@@ -181,29 +175,24 @@ private fun ImageCapturePreviewArea(
                 }
             }
             PhotoCaptureState.READY_TO_CAPTURE -> {
-                // Button to trigger camera/capture
                 Button(onClick = viewModel::onCaptureImageClick) {
                     Icon(Icons.Filled.CameraAlt, contentDescription = "Capture Image")
                     Spacer(Modifier.size(8.dp))
                     Text("Capture Image")
                 }
             }
-            // FIX START: Load the real image from the local file path using AsyncImage
             PhotoCaptureState.PHOTO_PREVIEW, PhotoCaptureState.RECORDING, PhotoCaptureState.REVIEW -> {
                 uiState.capturedImagePath?.let { path ->
-                    // AsyncImage loads the image from the local file path string
                     AsyncImage(
                         model = path,
                         contentDescription = "Captured Photo Preview",
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop, // Use Crop to fill the box
-                        // FIX: Removed the error block that caused compilation errors
+                        contentScale = ContentScale.Crop,
                     )
                 } ?: run {
                     Text("No Photo Captured Yet.", style = MaterialTheme.typography.titleMedium)
                 }
             }
-            // FIX END
         }
     }
 }
@@ -284,7 +273,6 @@ private fun AudioReviewControl(
     uiState: PhotoCaptureUiState,
     viewModel: PhotoCaptureViewModel
 ) {
-    // Only show audio controls if there is a recorded track.
     if ((uiState.lastRecordedDuration ?: 0) > 0) {
         val playbackIcon = if (uiState.isPlayingAudio) Icons.Filled.Stop else Icons.Filled.PlayArrow
         val contentDescription = if (uiState.isPlayingAudio) "Stop Playback" else "Play Recording"
@@ -320,7 +308,6 @@ private fun AudioReviewControl(
 
         val timeText = formatTime(displayPositionMs, durationSec)
 
-        // 1. Playback Bar
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -349,7 +336,6 @@ private fun AudioReviewControl(
             )
         }
 
-        // 2. Checkboxes (Only displayed if audio exists)
         Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
             CheckRow(
                 text = "No background noise",
@@ -368,7 +354,6 @@ private fun AudioReviewControl(
             )
         }
     } else {
-        // If no audio was recorded, still show mandatory checks to enable submit
         Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
             Text("Mandatory Checks:")
             CheckRow(

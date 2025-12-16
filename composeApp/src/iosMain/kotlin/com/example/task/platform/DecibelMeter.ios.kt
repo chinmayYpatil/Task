@@ -5,8 +5,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-// NOTE: This is a MOCKED implementation for the iOS structure.
-// Actual iOS implementation would use AVAudioRecorder/AVAudioSession.
 actual class DecibelMeter {
     private val _currentDb = MutableStateFlow(0f)
     actual val currentDb: StateFlow<Float> = _currentDb
